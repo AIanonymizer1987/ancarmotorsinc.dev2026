@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
     import Header from '../components/Header';
     import Footer from '../components/Footer';
     import InventoryCard from '../components/InventoryCard';
-    import { getVehicles, Vehicle } from '../data/vehicles';
+    import { getVehicles, type Vehicle } from '../data/vehicles.ts';
     import { Filter, Search } from 'lucide-react';
     import { Link } from 'react-router-dom';
 

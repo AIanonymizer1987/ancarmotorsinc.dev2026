@@ -3,8 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
     import Footer from '../components/Footer';
     import { useAuth } from '../context/AuthContext';
     import NotFound from './NotFound.tsx';
-    import { getVehicles, Vehicle, addVehicle, updateVehicle, deleteVehicle } from '../data/vehicles';
-    import { getOrders, Order, updateOrder, addOrder, deleteOrder } from '../data/orders';
+    import { getVehicles, type Vehicle, addVehicle, updateVehicle, deleteVehicle } from '../data/vehicles';
+    import { getOrders, type Order, updateOrder, addOrder, deleteOrder } from '../data/orders';
     import { toast } from 'react-toastify';
     import { Link } from 'react-router-dom';
 
