@@ -12,6 +12,8 @@ const Register: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [agreeToPolicies, setAgreeToPolicies] = useState(false);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -22,6 +24,14 @@ const Register: React.FC = () => {
     }
     if (password.length < 6) {
       toast.error('Password must be at least 6 characters.');
+      return;
+    }
+    if (!agreeToPolicies) {
+      toast.error('Please agree to our privacy policy.');
+      return;
+    }
+    if (!agreeToTerms) {
+      toast.error('Please agree to our terms and conditions.');
       return;
     }
 
@@ -102,9 +112,41 @@ const Register: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm">
-                <Link to="/login" className="text-blue-600 hover:underline">Already have an account?</Link>
+            <div className="mb-4">
+              <div className="flex items-start">
+                <input
+                  id="agreeToPolicies"
+                  type="checkbox"
+                  checked={agreeToPolicies}
+                  onChange={(e) => setAgreeToPolicies(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+                  required
+                />
+                <label htmlFor="agreeToPolicies" className="ml-2 text-sm text-gray-700">
+                  I agree to the{' '}
+                  <a href="/policies" target="_blank" className="text-blue-600 hover:underline">
+                    Privacy Policy
+                  </a>
+                </label>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-start">
+                <input
+                  id="agreeToTerms"
+                  type="checkbox"
+                  checked={agreeToTerms}
+                  onChange={(e) => setAgreeToTerms(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+                  required
+                />
+                <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700">
+                  I agree to the{' '}
+                  <a href="/terms" target="_blank" className="text-blue-600 hover:underline">
+                    Terms & Conditions
+                  </a>
+                </label>
               </div>
             </div>
 

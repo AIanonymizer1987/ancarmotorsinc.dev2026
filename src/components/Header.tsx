@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
 
@@ -15,6 +16,8 @@ const Header = () => {
     { name: 'Inventory', href: '/inventory' },
     { name: 'Contact', href: '/contact' }
   ];
+
+  const isAdmin = user?.email?.toLowerCase() === 'admin@ancarmotors.com';
 
   const isActive = (href: string) => location.pathname === href;
 
@@ -49,7 +52,33 @@ const Header = () => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
-                <span className="text-sm text-gray-700">Hello, <strong>{user.name}</strong></span>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                    className="flex items-center space-x-1 text-sm text-gray-700 hover:text-blue-600"
+                  >
+                    <span>Hello, <strong>{user.name}</strong></span>
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                  {isUserDropdownOpen && !isAdmin && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border">
+                      <Link
+                        to="/profile"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserDropdownOpen(false)}
+                      >
+                        Profile Dashboard
+                      </Link>
+                      <Link
+                        to="/orders"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsUserDropdownOpen(false)}
+                      >
+                        Orders Section
+                      </Link>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => logout()}
                   className="px-3 py-2 rounded-md text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50"
@@ -107,6 +136,45 @@ const Header = () => {
                 {user ? (
                   <div className="px-3">
                     <div className="text-sm text-gray-700 mb-2">Signed in as <strong>{user.name}</strong></div>
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        className={`block px-3 py-2 rounded-md text-base font-medium mb-2 transition-colors ${
+                          isActive('/admin')
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        Admin Panel
+                      </Link>
+                    )}
+                    {!isAdmin && (
+                      <>
+                        <Link
+                          to="/profile"
+                          className={`block px-3 py-2 rounded-md text-base font-medium mb-2 transition-colors ${
+                            isActive('/profile')
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                          }`}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Profile Dashboard
+                        </Link>
+                        <Link
+                          to="/orders"
+                          className={`block px-3 py-2 rounded-md text-base font-medium mb-2 transition-colors ${
+                            isActive('/orders')
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                          }`}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Orders Section
+                        </Link>
+                      </>
+                    )}
                     <button
                       onClick={() => { logout(); setIsMenuOpen(false); }}
                       className="w-full text-left px-3 py-2 rounded-md text-base font-medium bg-white border border-gray-200 hover:bg-gray-50"

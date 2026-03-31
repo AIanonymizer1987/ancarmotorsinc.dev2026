@@ -36,20 +36,20 @@ export default function About() {
                 />
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
+                <h2 className="text-3xl font-bold text-gray-900 mb-6">Who are we?</h2>
                 <p className="text-gray-600 mb-4">
-                  Founded in 2008, Ancar Motors Inc has been serving the Motor City community 
-                  with integrity, quality, and exceptional customer service. What started as a 
-                  small family business has grown into one of the region's most trusted automotive dealers.
+                  Our business is in marketing of imported and reconditioned Japanese trucks, 
+                  special-purpose vehicles such as tractor head, tanker, dump and fire trucks, SUVs,
+                   and heavy equipment. 
                 </p>
                 <p className="text-gray-600 mb-4">
-                  Our mission is simple: to provide our customers with quality vehicles, 
-                  transparent pricing, and service that exceeds expectations. We believe that 
-                  buying a car should be an exciting experience, not a stressful one.
+                  Our company carries Isuzu, Fuso, Mitsubishi, and Suzuki brands 
+                  of reliable quality and performance in the Japanese and Philippine market.
                 </p>
                 <p className="text-gray-600">
-                  Today, we continue to uphold the values that built our reputation: honesty, 
-                  reliability, and a genuine commitment to helping our customers find the perfect vehicle.
+                  Types of body include standard flat bed, low or high-dropside, palletized, and stake-body.
+                   Our company can also provide the standard aluminum van to wing-van type and 
+                   customized chiller and freezer vans and any customized body and/or unit preferred.
                 </p>
               </div>
             </div>
@@ -95,8 +95,42 @@ export default function About() {
                 </div>
               </div>
             </div>
+            <div className="bg-gray-50 rounded-lg p-8 gap-8 mt-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Mission</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">Support</h3>
+                  <p className="text-gray-600">
+                    Continuously help imporve the welfare of our people towards growth within the company.
+                  </p>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">Sustainability</h3>
+                  <p className="text-gray-600">
+                    Adhere to the environmental standards and meet the expectations of the clients and stakeholders.
+                  </p>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">World Class</h3>
+                  <p className="text-gray-600">
+                    Assure high quality and reliable products.
+                  </p>
+                </div>
+              </div>
+            </div>
+             <div className="bg-gray-50 rounded-lg p-8 gap-8 mt-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Vision</h2>
+              <div className="text-center gap-8">
+                <div className="text-center">
+                  <p className="text-gray-600">
+                    To be the leading Filipino-owned truck and heavy equipment importer, distributor and assembler in the Philippine market.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
+        
       </main>
       <Footer />
     </div>
