@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
-import { getOrders, Order } from '../data/orders';
+import { getOrders } from '../data/orders';
+import type { Order } from '../data/orders';
 import { getVehicleById } from '../data/vehicles';
 
 export default function Orders() {
