@@ -37,13 +37,19 @@ export default function BranchesCarousel() {
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-2">
-            {/* Image Section */}
+            {/* Map Section */}
             <div className="relative h-80 lg:h-full min-h-96 bg-gray-200 overflow-hidden">
-              <img
-                src={currentBranch.image}
-                alt={currentBranch.name}
-                className="w-full h-full object-cover transition-opacity duration-500"
-              />
+              <iframe
+                src={currentBranch.mapEmbedUrl}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title={`Map of ${currentBranch.name}`}
+                className="w-full h-full"
+              ></iframe>
               
               {/* Navigation Arrows */}
               <button

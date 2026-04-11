@@ -4,7 +4,7 @@ import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { getUserOrders, updateOrder } from '../utils/api';
 import { getTestDrives } from '../utils/api';
-import { Order } from '../types';
+import type { Order } from '../types';
 import { toast } from 'react-toastify';
 
 interface TestDrive {

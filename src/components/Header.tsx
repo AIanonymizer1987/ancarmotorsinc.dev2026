@@ -26,8 +26,15 @@ const Header = () => {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex-shrink-0">
-            <Link to="/" className="text-2xl font-bold text-blue-600">
+            <Link to="/" className="flex items-center">
+              <img
+                src="https://res.cloudinary.com/dy3vb87qz/image/upload/v1773986536/AncarLogo.7ad7473b37e000adbeb6-BmDIH5my_srdoz3.png"
+                alt="Ancar Motors Inc Logo"
+                className="h-10 w-auto"
+              />
+              <Link to="/" className="text-2xl font-bold text-blue-600">
               ANCAR MOTORS INC
+            </Link>
             </Link>
           </div>
           

@@ -1,30 +1,35 @@
 import type { Vehicle, User, Order } from '../types';
 
-const API_URL = import.meta.env.VITE_NEON_API_URL;
-const ANON_KEY = import.meta.env.VITE_NEON_ANON_KEY;
+const API_URL = '/api/neon';
 
 const headers = {
   'Content-Type': 'application/json',
-  'apikey': ANON_KEY,
-  'Authorization': `Bearer ${ANON_KEY}`,
 };
 
 // Vehicles
 export const getVehicles = async (): Promise<Vehicle[]> => {
-  const response = await fetch(`${API_URL}/vehicle_details?select=*`, { headers });
-  if (!response.ok) throw new Error('Failed to fetch vehicles');
-  return response.json();
+  try {
+    const response = await fetch(`${API_URL}/vehicles?select=*`, { headers });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch vehicles: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+    return response.json();
+  } catch (error) {
+    console.error('API Error in getVehicles:', error);
+    throw error;
+  }
 };
 
 export const getVehicle = async (id: number): Promise<Vehicle> => {
-  const response = await fetch(`${API_URL}/vehicle_details?id=eq.${id}&select=*`, { headers });
+  const response = await fetch(`${API_URL}/vehicles?vehicle_id=eq.${id}&select=*`, { headers });
   if (!response.ok) throw new Error('Failed to fetch vehicle');
   const data = await response.json();
   return data[0];
 };
 
 export const updateVehicle = async (id: number, updates: Partial<Vehicle>): Promise<void> => {
-  const response = await fetch(`${API_URL}/vehicle_details?id=eq.${id}`, {
+  const response = await fetch(`${API_URL}/vehicles?vehicle_id=eq.${id}`, {
     method: 'PATCH',
     headers,
     body: JSON.stringify(updates),
@@ -33,7 +38,7 @@ export const updateVehicle = async (id: number, updates: Partial<Vehicle>): Prom
 };
 
 export const addVehicle = async (vehicle: Omit<Vehicle, 'vehicle_id'>): Promise<Vehicle> => {
-  const response = await fetch(`${API_URL}/vehicle_details`, {
+  const response = await fetch(`${API_URL}/vehicles`, {
     method: 'POST',
     headers,
     body: JSON.stringify(vehicle),
@@ -43,7 +48,7 @@ export const addVehicle = async (vehicle: Omit<Vehicle, 'vehicle_id'>): Promise<
 };
 
 export const deleteVehicle = async (id: number): Promise<void> => {
-  const response = await fetch(`${API_URL}/vehicle_details?id=eq.${id}`, {
+  const response = await fetch(`${API_URL}/vehicles?vehicle_id=eq.${id}`, {
     method: 'DELETE',
     headers,
   });

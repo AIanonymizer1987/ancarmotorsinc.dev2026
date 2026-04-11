@@ -1,7 +1,7 @@
 import React from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { Users, Award, Clock, Heart } from 'lucide-react';
+import { Users, Award, Clock, Heart, Shield, Wrench, Leaf, Trophy, Eye } from 'lucide-react';
 
 export default function About() {
   const stats = [
@@ -36,17 +36,19 @@ export default function About() {
                 />
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-6">Who are we?</h2>
-                <p className="text-gray-600 mb-4">
+                <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center justify-center">
+                  <span className="mr-3">Who Are We?</span>
+                </h2>
+                <p className="text-gray-600 mb-4 text-center">
                   Our business is in marketing of imported and reconditioned Japanese trucks, 
                   special-purpose vehicles such as tractor head, tanker, dump and fire trucks, SUVs,
                    and heavy equipment. 
                 </p>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-600 mb-4 text-center">
                   Our company carries Isuzu, Fuso, Mitsubishi, and Suzuki brands 
                   of reliable quality and performance in the Japanese and Philippine market.
                 </p>
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-center">
                   Types of body include standard flat bed, low or high-dropside, palletized, and stake-body.
                    Our company can also provide the standard aluminum van to wing-van type and 
                    customized chiller and freezer vans and any customized body and/or unit preferred.
@@ -73,6 +75,9 @@ export default function About() {
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Values</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Shield className="h-8 w-8 text-blue-600" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-3">Integrity</h3>
                   <p className="text-gray-600">
                     We believe in honest, transparent dealings with every customer, 
@@ -80,6 +85,9 @@ export default function About() {
                   </p>
                 </div>
                 <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Award className="h-8 w-8 text-blue-600" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-3">Quality</h3>
                   <p className="text-gray-600">
                     Every vehicle in our inventory is carefully inspected to ensure 
@@ -87,6 +95,9 @@ export default function About() {
                   </p>
                 </div>
                 <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Wrench className="h-8 w-8 text-blue-600" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-3">Service</h3>
                   <p className="text-gray-600">
                     Our commitment to exceptional customer service doesn't end 
@@ -99,18 +110,27 @@ export default function About() {
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Mission</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Heart className="h-8 w-8 text-blue-600" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-3">Support</h3>
                   <p className="text-gray-600">
                     Continuously help imporve the welfare of our people towards growth within the company.
                   </p>
                 </div>
                 <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Leaf className="h-8 w-8 text-blue-600" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-3">Sustainability</h3>
                   <p className="text-gray-600">
                     Adhere to the environmental standards and meet the expectations of the clients and stakeholders.
                   </p>
                 </div>
                 <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Trophy className="h-8 w-8 text-blue-600" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-3">World Class</h3>
                   <p className="text-gray-600">
                     Assure high quality and reliable products.
@@ -121,11 +141,12 @@ export default function About() {
              <div className="bg-gray-50 rounded-lg p-8 gap-8 mt-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Vision</h2>
               <div className="text-center gap-8">
-                <div className="text-center">
-                  <p className="text-gray-600">
-                    To be the leading Filipino-owned truck and heavy equipment importer, distributor and assembler in the Philippine market.
-                  </p>
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Eye className="h-8 w-8 text-blue-600" />
                 </div>
+                <p className="text-gray-600">
+                  To be the leading Filipino-owned truck and heavy equipment importer, distributor and assembler in the Philippine market.
+                </p>
               </div>
             </div>
           </div>

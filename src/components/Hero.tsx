@@ -8,7 +8,7 @@ const Hero = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80)',
+          backgroundImage: 'url(https://res.cloudinary.com/dy3vb87qz/image/upload/v1775920222/background6f5a58ea9a57050f0323_lhpny0_cfe3d8.jpg)',
           backgroundBlendMode: 'overlay'
         }}
       ></div>
@@ -24,7 +24,7 @@ const Hero = () => {
             <span className="ml-2 text-sm">Trusted by 1000+ customers</span>
           </div>
           
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight" style={{ textShadow: '1px 1px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000' }}>
             Quality Cars,
             <span className="text-blue-300"> Exceptional Service</span>
           </h1>

@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
     import Footer from '../components/Footer';
     import InventoryCard from '../components/InventoryCard';
     import { getVehicles } from '../utils/api';
-import { Vehicle } from '../types';
+import type { Vehicle } from '../types';
     import { Filter, Search } from 'lucide-react';
     import { Link } from 'react-router-dom';
 
@@ -15,14 +15,18 @@ import { Vehicle } from '../types';
       const [minRating, setMinRating] = useState<number>(0);
       const [showFilters, setShowFilters] = useState<boolean>(false);
       const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadVehicles = async () => {
       try {
         const vehicles = await getVehicles();
         setAllVehicles(vehicles);
-      } catch {
-        console.error('Failed to load vehicles');
+        setLoadError(null);
+      } catch (error) {
+        console.error('Failed to load vehicles from API:', error);
+        setAllVehicles([]);
+        setLoadError('Vehicle Data does not exist or cannot be found.');
       }
     };
     loadVehicles();
@@ -195,13 +199,13 @@ import { Vehicle } from '../types';
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {filteredVehicles.map((vehicle) => (
-                      <InventoryCard key={vehicle.id} vehicle={vehicle} />
+                      <InventoryCard key={vehicle.vehicle_id} vehicle={vehicle} />
                     ))}
                   </div>
 
                   {filteredVehicles.length === 0 && (
                     <div className="mt-8 bg-white p-6 rounded-md shadow-sm text-center">
-                      <p className="text-gray-700">No vehicles matched your search or filters.</p>
+                      <p className="text-gray-700">{loadError ?? 'No vehicles matched your search or filters.'}</p>
                     </div>
                   )}
                 </section>

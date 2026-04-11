@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { getVehicle } from '../utils/api';
-import { Vehicle } from '../types';
+import type { Vehicle } from '../types';
 import { Calendar, Fuel, ArrowLeft } from 'lucide-react';
 
     const VehicleDetail: React.FC = () => {
@@ -13,12 +13,16 @@ import { Calendar, Fuel, ArrowLeft } from 'lucide-react';
 
   useEffect(() => {
     const loadVehicle = async () => {
-      if (!id) return;
+      if (!id) {
+        setLoading(false);
+        return;
+      }
       try {
         const v = await getVehicle(parseInt(id));
         setVehicle(v);
       } catch (error) {
-        console.error('Failed to load vehicle:', error);
+        console.error('Failed to load vehicle from API:', error);
+        setVehicle(null);
       } finally {
         setLoading(false);
       }
@@ -46,8 +50,8 @@ import { Calendar, Fuel, ArrowLeft } from 'lucide-react';
         <Header />
         <main className="py-16">
           <div className="max-w-4xl mx-auto px-4">
-            <h1 className="text-3xl font-bold mb-4">Vehicle not found</h1>
-            <p className="text-gray-600 mb-6">We couldn't find the vehicle you're looking for.</p>
+            <h1 className="text-3xl font-bold mb-4">Vehicle Data does not exist or cannot be found.</h1>
+            <p className="text-gray-600 mb-6">Please return to the inventory or try another selection.</p>
             <Link to="/inventory" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md">
               <ArrowLeft className="h-4 w-4" /> Back to Inventory
             </Link>

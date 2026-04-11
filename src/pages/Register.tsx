@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import { Phone } from 'lucide-react';
 
 const Register: React.FC = () => {
   const { register } = useAuth();
@@ -11,6 +12,8 @@ const Register: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [confirm, setConfirm] = useState('');
   const [agreeToPolicies, setAgreeToPolicies] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
@@ -46,7 +49,7 @@ const Register: React.FC = () => {
 
     setSubmitting(true);
     try {
-      await register(name.trim(), email.trim(), password);
+      await register(name.trim(), email.trim(), password, phone.trim(), address.trim());
       toast.success('Account created successfully!');
       navigate('/');
     } catch {
@@ -89,6 +92,34 @@ const Register: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
                 placeholder="you@example.com"
+                aria-required="true"
+              />
+            </div>
+
+             <div className="mb-4">
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input
+                id="phone"
+                type="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                placeholder="Your phone number"
+                aria-required="true"
+              />
+            </div>
+
+             <div className="mb-4">
+              <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+              <input
+                id="address"
+                type="text"
+                required
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                placeholder="Your address"
                 aria-required="true"
               />
             </div>

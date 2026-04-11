@@ -1,0 +1,3 @@
+{
+  "/api/neon/[...path]/route": "app/api/neon/[...path]/route.js"
+}

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { getVehicles, getUsers, getOrders, getTestDrives, getSuppliers, addVehicle, updateVehicle, deleteVehicle, updateOrder, addSupplier, updateSupplier, deleteSupplier } from '../utils/api';
 import type { Vehicle, Order, User } from '../types';
 import { toast } from 'react-toastify';
-import { PieChart, Pie, Cell } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 type ViewType = 'dashboard' | 'vehicles' | 'orders' | 'suppliers' | 'analytics';
 
@@ -19,22 +19,20 @@ const Admin: React.FC = () => {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
-  const [editingSupplier, setEditingSupplier] = useState<any | null>(null
+  const isAdmin = user?.role === 'admin';
 
+  useEffect(() => {
     const fetchData = async () => {
       try {
-        const [vehiclesData, ordersData, usersData, testDrivesData, suppliersData] = await Promise.all([
+        const [vehiclesData, ordersData, usersData, suppliersData] = await Promise.all([
           getVehicles(),
           getOrders(),
           getUsers(),
-          getTestDrives(),
           getSuppliers(),
         ]);
         setVehicles(vehiclesData);
         setOrders(ordersData);
         setUsers(usersData);
-        setTestDrives(testDrivesData);
         setSuppliers(suppliersData);
       } catch {
         toast.error('Failed to load data');
@@ -42,7 +40,9 @@ const Admin: React.FC = () => {
         setLoading(false);
       }
     };
-    fetchData();
+    if (isAdmin) {
+      fetchData();
+    }
   }, [isAdmin]);
 
   const stats = useMemo(() => {
@@ -89,13 +89,67 @@ const Admin: React.FC = () => {
     }
   };
 
-  const handicle = async (vehicle: Vehicle) => {
+  const handleDeleteSupplier = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this supplier?')) return;
     try {
-      if (editingVehicle) {
-        await leteSupplier(id);
+      await deleteSupplier(id);
       setSuppliers(suppliers.filter(s => s.id !== id));
-      toast.suingSupplier(false);
-    } catch {  >
+      toast.success('Supplier deleted');
+    } catch {
+      toast.error('Failed to delete supplier');
+    }
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">Access Denied</h1>
+              <p className="text-gray-600">You do not have permission to access this page.</p>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p>Loading admin data...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-1 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex gap-6">
+            {/* Sidebar */}
+            <div className="w-48 bg-white shadow rounded-lg p-4 h-fit">
+              <nav className="space-y-2">
+                <button
+                  onClick={() => setCurrentView('dashboard')}
+                  className={`w-full text-left px-3 py-2 rounded ${currentView === 'dashboard' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => setCurrentView('vehicles')}
+                  className={`w-full text-left px-3 py-2 rounded ${currentView === 'vehicles' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+                >
                   Vehicles
                 </button>
                 <button
@@ -105,71 +159,53 @@ const Admin: React.FC = () => {
                   Orders
                 </button>
                 <button
-              <div className="space-y-6">
-                <h1 className="text-2xl font-bold">Dashboard</h1>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold">Total Vehicles</h3>
-                    <p className="text-3xl font-bold text-blue-600">{stats.totalVehicles}</p>
+                  onClick={() => setCurrentView('suppliers')}
+                  className={`w-full text-left px-3 py-2 rounded ${currentView === 'suppliers' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+                >
+                  Suppliers
+                </button>
+                <button
+                  onClick={() => setCurrentView('analytics')}
+                  className={`w-full text-left px-3 py-2 rounded ${currentView === 'analytics' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+                >
+                  Analytics
+                </button>
+              </nav>
+            </div>
+
+            {/* Main Content */}
+            <div className="flex-1">
+              {currentView === 'dashboard' && (
+                <div className="space-y-6">
+                  <h1 className="text-2xl font-bold">Dashboard</h1>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white p-6 rounded-lg shadow">
+                      <h3 className="text-lg font-semibold">Total Vehicles</h3>
+                      <p className="text-3xl font-bold text-blue-600">{stats.totalVehicles}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-lg shadow">
+                      <h3 className="text-lg font-semibold">Total Orders</h3>
+                      <p className="text-3xl font-bold text-green-600">{stats.totalOrders}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-lg shadow">
+                      <h3 className="text-lg font-semibold">Total Users</h3>
+                      <p className="text-3xl font-bold text-purple-600">{stats.totalUsers}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-lg shadow">
+                      <h3 className="text-lg font-semibold">Total Revenue</h3>
+                      <p className="text-3xl font-bold text-yellow-600">${stats.totalRevenue.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-lg shadow">
+                      <h3 className="text-lg font-semibold">Pending Orders</h3>
+                      <p className="text-3xl font-bold text-orange-600">{stats.pendingOrders}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-lg shadow">
+                      <h3 className="text-lg font-semibold">Completed Orders</h3>
+                      <p className="text-3xl font-bold text-teal-600">{stats.completedOrders}</p>
+                    </div>
                   </div>
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold">Total Orders</h3>
-                    <p className="text-3xl font-bold text-green-600">{stats.totalOrders}</p>
-                  </div>
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold">Total Users</h3>
-                    <p className="text-3xl font-bold text-purple-600">{stats.totalUsers}</p>
-                  </div>
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold">Total Revenue</h3>
-                    <p className="text-3xl font-bold text-yellow-600">${stats.totalRevenue.toLocaleString()}</p>
-                  </div>
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                  >
-                    Add Vehicle
-                  </button>
                 </div>
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-2 text-left">Make</th>
-                        <th className="px-4 py-2 text-left">Model</th>
-                        <th className="px-4 py-2 text-left">Year</th>
-                        <th className="px-4 py-2 text-left">Price</th>
-                        <th className="px-4 py-2 text-left">Stock</th>
-                        <th className="px-4 py-2 text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {vehicles.map(vehicle => (
-                        <tr key={vehicle.vehicle_id} className="border-t">
-                          <td className="px-4 py-2">{vehicle.vehicle_make}</td>
-                          <td className="px-4 py-2">{vehicle.vehicle_model}</td>
-                          <td className="px-4 py-2">{vehicle.vehicle_year}</td>
-                          <td className="px-4 py-2">${vehicle.vehicle_base_price?.toLocaleString()}</td>
-                          <td className="px-4 py-2">{vehicle.stock_quantity}</td>
-                          <td className="px-4 py-2 space-x-2">
-                            <button
-                              onClick={() => setEditingVehicle(vehicle)}
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteVehicle(vehicle.vehicle_id)}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+              )}
 
             {currentView === 'orders' && (
               <div className="space-y-6">
@@ -216,16 +252,51 @@ const Admin: React.FC = () => {
               </div>
             )}
 
+              {currentView === 'vehicles' && (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h1 className="text-2xl font-bold">Vehicles</h1>
+                  </div>
+                  <div className="bg-white rounded-lg shadow overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left">Make</th>
+                          <th className="px-4 py-2 text-left">Model</th>
+                          <th className="px-4 py-2 text-left">Year</th>
+                          <th className="px-4 py-2 text-left">Price</th>
+                          <th className="px-4 py-2 text-left">Stock</th>
+                          <th className="px-4 py-2 text-left">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vehicles.map(vehicle => (
+                          <tr key={vehicle.vehicle_id} className="border-t">
+                            <td className="px-4 py-2">{vehicle.vehicle_make}</td>
+                            <td className="px-4 py-2">{vehicle.vehicle_model}</td>
+                            <td className="px-4 py-2">{vehicle.vehicle_year}</td>
+                            <td className="px-4 py-2">${vehicle.vehicle_base_price?.toLocaleString()}</td>
+                            <td className="px-4 py-2">{vehicle.stock_quantity}</td>
+                            <td className="px-4 py-2 space-x-2">
+                              <button
+                                onClick={() => handleDeleteVehicle(vehicle.vehicle_id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+            )}
+
             {currentView === 'suppliers' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h1 className="text-2xl font-bold">Suppliers</h1>
-                  <button
-                    onClick={() => setIsAddingSupplier(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                  >
-                    Add Supplier
-                  </button>
                 </div>
                 <div className="bg-white rounded-lg shadow overflow-hidden">
                   <table className="w-full">
@@ -244,12 +315,6 @@ const Admin: React.FC = () => {
                           <td className="px-4 py-2">{supplier.contact_person}</td>
                           <td className="px-4 py-2">{supplier.email}</td>
                           <td className="px-4 py-2 space-x-2">
-                            <button
-                              onClick={() => setEditingSupplier(supplier)}
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              Edit
-                            </button>
                             <button
                               onClick={() => handleDeleteSupplier(supplier.id)}
                               className="text-red-600 hover:text-red-800"
@@ -290,9 +355,10 @@ const Admin: React.FC = () => {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
-      </div>
+      </main>
       <Footer />
     </div>
   );
