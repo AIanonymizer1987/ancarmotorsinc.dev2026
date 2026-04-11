@@ -15,9 +15,10 @@ import NotFound from './src/pages/NotFound';
 import Login from './src/pages/Login';
 import Register from './src/pages/Register';
 import Profile from './src/pages/Profile';
-import Orders from './src/pages/Orders';
+import MyActivities from './src/pages/MyActivities';
 import Policies from './src/pages/Policies';
 import Terms from './src/pages/Terms';
+import Payment from './src/pages/Payment';
 import { AuthProvider } from './src/context/AuthContext';
 import Admin from './src/pages/Admin';
 
@@ -37,7 +38,8 @@ const App: React.FC = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/orders" element={<Orders />} />
+              <Route path="/my-activities" element={<MyActivities />} />
+              <Route path="/payment" element={<Payment />} />
               <Route path="/policies" element={<Policies />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/admin" element={<Admin />} />

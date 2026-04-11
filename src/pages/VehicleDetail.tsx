@@ -1,35 +1,64 @@
-import React from 'react';
-    import { useParams, Link } from 'react-router-dom';
-    import Header from '../components/Header';
-    import Footer from '../components/Footer';
-    import { getVehicleById } from '../data/vehicles';
-    import { Calendar, Gauge, Fuel, ArrowLeft, Star } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import { getVehicle } from '../utils/api';
+import { Vehicle } from '../types';
+import { Calendar, Fuel, ArrowLeft } from 'lucide-react';
 
     const VehicleDetail: React.FC = () => {
       const { id } = useParams<{ id: string }>();
-      const vehicle = id ? getVehicleById(id) : undefined;
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [loading, setLoading] = useState(true);
 
-      if (!vehicle) {
-        return (
-          <div className="min-h-screen">
-            <Header />
-            <main className="py-16">
-              <div className="max-w-4xl mx-auto px-4">
-                <h1 className="text-3xl font-bold mb-4">Vehicle not found</h1>
-                <p className="text-gray-600 mb-6">We couldn't find the vehicle you're looking for.</p>
-                <Link to="/inventory" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md">
-                  <ArrowLeft className="h-4 w-4" /> Back to Inventory
-                </Link>
-              </div>
-            </main>
-            <Footer />
-          </div>
-        );
+  useEffect(() => {
+    const loadVehicle = async () => {
+      if (!id) return;
+      try {
+        const v = await getVehicle(parseInt(id));
+        setVehicle(v);
+      } catch (error) {
+        console.error('Failed to load vehicle:', error);
+      } finally {
+        setLoading(false);
       }
+    };
+    loadVehicle();
+  }, [id]);
 
-      const formattedPrice = vehicle.price.toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="py-16">
+          <div className="max-w-4xl mx-auto px-4 text-center">
+            <p>Loading vehicle details...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!vehicle) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="py-16">
+          <div className="max-w-4xl mx-auto px-4">
+            <h1 className="text-3xl font-bold mb-4">Vehicle not found</h1>
+            <p className="text-gray-600 mb-6">We couldn't find the vehicle you're looking for.</p>
+            <Link to="/inventory" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md">
+              <ArrowLeft className="h-4 w-4" /> Back to Inventory
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const formattedPrice = vehicle.vehicle_base_price.toLocaleString('en-US', {
         maximumFractionDigits: 0,
       });
 
@@ -48,40 +77,35 @@ import React from 'react';
                 <div className="grid grid-cols-1 lg:grid-cols-2">
                   <div className="w-full h-96 bg-gray-100">
                     <img
-                      src={vehicle.image}
-                      alt={`${vehicle.year} ${vehicle.make} ${vehicle.model} - detailed view`}
+                      src={vehicle.vehicle_img_url}
+                      alt={`${vehicle.vehicle_year} ${vehicle.vehicle_make} ${vehicle.vehicle_model} - detailed view`}
                       className="w-full h-full object-cover"
                     />
                   </div>
 
                   <div className="p-6">
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                      {vehicle.year} {vehicle.make} {vehicle.model}
+                      {vehicle.vehicle_year} {vehicle.vehicle_make} {vehicle.vehicle_model}
                     </h1>
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center text-gray-700">
-                        <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                        <span className="font-semibold">{vehicle.rating.toFixed(1)}</span>
-                        <span className="ml-2 text-sm text-gray-500">/ 5 rating</span>
-                      </div>
-
                       <div className="text-2xl font-bold text-blue-600">
                         {formattedPrice}
                       </div>
                     </div>
 
-                    <p className="text-gray-700 mb-4">{vehicle.description}</p>
+                    <p className="text-gray-700 mb-4">{vehicle.vehicle_description}</p>
 
                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 mb-6">
-                      <li className="flex items-center"><Calendar className="h-4 w-4 mr-2" /> Year: <span className="ml-2 font-medium text-gray-900">{vehicle.year}</span></li>
-                      <li className="flex items-center"><Gauge className="h-4 w-4 mr-2" /> Mileage: <span className="ml-2 font-medium text-gray-900">{vehicle.mileage} mi</span></li>
-                      <li className="flex items-center"><Fuel className="h-4 w-4 mr-2" /> Fuel Type: <span className="ml-2 font-medium text-gray-900">{vehicle.fuelType}</span></li>
-                      <li className="flex items-center"><span className="h-4 w-4 mr-2" />Condition: <span className="ml-2 font-medium text-gray-900">Used</span></li>
+                      <li className="flex items-center"><Calendar className="h-4 w-4 mr-2" /> Year: <span className="ml-2 font-medium text-gray-900">{vehicle.vehicle_year}</span></li>
+                      <li className="flex items-center"><Fuel className="h-4 w-4 mr-2" /> Fuel Type: <span className="ml-2 font-medium text-gray-900">{vehicle.vehicle_fuel_type}</span></li>
+                      <li className="flex items-center"><span className="h-4 w-4 mr-2" />Color: <span className="ml-2 font-medium text-gray-900">{vehicle.vehicle_color}</span></li>
+                      <li className="flex items-center"><span className="h-4 w-4 mr-2" />Fuel Economy: <span className="ml-2 font-medium text-gray-900">{vehicle.vehicle_fuel_economy}</span></li>
+                      <li className="flex items-center"><span className="h-4 w-4 mr-2" />Stock: <span className="ml-2 font-medium text-gray-900">{vehicle.stock_quantity || 0}</span></li>
                     </ul>
 
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <button className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700">Request Info</button>
-                      <button className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-md hover:bg-gray-50">Schedule Test Drive</button>
+                      <Link to="/services" className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700">Order Vehicle</Link>
+                      <Link to="/services" className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-md hover:bg-gray-50">Schedule Test Drive</Link>
                     </div>
                   </div>
                 </div>
@@ -96,35 +120,35 @@ import React from 'react';
                 <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-700">
                   <div>
                     <dt className="font-medium text-gray-900">Make</dt>
-                    <dd>{vehicle.make}</dd>
+                    <dd>{vehicle.vehicle_make}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-gray-900">Model</dt>
-                    <dd>{vehicle.model}</dd>
+                    <dd>{vehicle.vehicle_model}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-gray-900">Year</dt>
-                    <dd>{vehicle.year}</dd>
+                    <dd>{vehicle.vehicle_year}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-gray-900">Price</dt>
                     <dd>{formattedPrice}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-gray-900">Mileage</dt>
-                    <dd>{vehicle.mileage} mi</dd>
-                  </div>
-                  <div>
                     <dt className="font-medium text-gray-900">Fuel Type</dt>
-                    <dd>{vehicle.fuelType}</dd>
+                    <dd>{vehicle.vehicle_fuel_type}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-gray-900">Rating</dt>
-                    <dd>{vehicle.rating} / 5</dd>
+                    <dt className="font-medium text-gray-900">Color</dt>
+                    <dd>{vehicle.vehicle_color}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-gray-900">Stock ID</dt>
-                    <dd>{vehicle.id}</dd>
+                    <dt className="font-medium text-gray-900">Fuel Economy</dt>
+                    <dd>{vehicle.vehicle_fuel_economy}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-gray-900">Stock Quantity</dt>
+                    <dd>{vehicle.stock_quantity || 0}</dd>
                   </div>
                 </dl>
               </section>

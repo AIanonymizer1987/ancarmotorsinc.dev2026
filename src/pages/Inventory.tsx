@@ -2,7 +2,8 @@ import React, { useMemo, useState, useEffect } from 'react';
     import Header from '../components/Header';
     import Footer from '../components/Footer';
     import InventoryCard from '../components/InventoryCard';
-    import { getVehicles, type Vehicle } from '../data/vehicles.ts';
+    import { getVehicles } from '../utils/api';
+import { Vehicle } from '../types';
     import { Filter, Search } from 'lucide-react';
     import { Link } from 'react-router-dom';
 
@@ -15,48 +16,49 @@ import React, { useMemo, useState, useEffect } from 'react';
       const [showFilters, setShowFilters] = useState<boolean>(false);
       const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
 
-      useEffect(() => {
-        setAllVehicles(getVehicles());
-        const onStorage = () => {
-          setAllVehicles(getVehicles());
-        };
-        window.addEventListener('storage', onStorage);
-        return () => window.removeEventListener('storage', onStorage);
-      }, []);
+  useEffect(() => {
+    const loadVehicles = async () => {
+      try {
+        const vehicles = await getVehicles();
+        setAllVehicles(vehicles);
+      } catch {
+        console.error('Failed to load vehicles');
+      }
+    };
+    loadVehicles();
+  }, []);
 
-      const makes = useMemo(() => {
-        const setOfMakes = Array.from(new Set(allVehicles.map((v) => v.make)));
-        return ['All', ...setOfMakes];
-      }, [allVehicles]);
+  const makes = useMemo(() => {
+    const setOfMakes = Array.from(new Set(allVehicles.map((v) => v.vehicle_make)));
+    return ['All', ...setOfMakes];
+  }, [allVehicles]);
 
-      const fuelTypes = useMemo(() => {
-        const setOfFuel = Array.from(new Set(allVehicles.map((v) => v.fuelType)));
-        return ['All', ...setOfFuel];
-      }, [allVehicles]);
+  const fuelTypes = useMemo(() => {
+    const setOfFuel = Array.from(new Set(allVehicles.map((v) => v.vehicle_fuel_type)));
+    return ['All', ...setOfFuel];
+  }, [allVehicles]);
 
-      const filteredVehicles = useMemo(() => {
-        return allVehicles.filter((v: Vehicle) => {
-          // search by make, model, year
-          const query = search.trim().toLowerCase();
-          if (query) {
-            const hay = `${v.make} ${v.model} ${v.year}`.toLowerCase();
-            if (!hay.includes(query)) return false;
-          }
+  const filteredVehicles = useMemo(() => {
+    return allVehicles.filter((v: Vehicle) => {
+      // search by make, model, year
+      const query = search.trim().toLowerCase();
+      if (query) {
+        const hay = `${v.vehicle_make} ${v.vehicle_model} ${v.vehicle_year}`.toLowerCase();
+        if (!hay.includes(query)) return false;
+      }
 
-          if (selectedMake !== 'All' && v.make !== selectedMake) return false;
-          if (selectedFuel !== 'All' && v.fuelType !== selectedFuel) return false;
+      if (selectedMake !== 'All' && v.vehicle_make !== selectedMake) return false;
+      if (selectedFuel !== 'All' && v.vehicle_fuel_type !== selectedFuel) return false;
 
-          if (priceRange !== 'All') {
-            if (priceRange === '<20000' && !(v.price < 20000)) return false;
-            if (priceRange === '20000-30000' && !(v.price >= 20000 && v.price <= 30000)) return false;
-            if (priceRange === '>30000' && !(v.price > 30000)) return false;
-          }
+      if (priceRange !== 'All') {
+        if (priceRange === '<20000' && !(v.vehicle_base_price < 20000)) return false;
+        if (priceRange === '20000-30000' && !(v.vehicle_base_price >= 20000 && v.vehicle_base_price <= 30000)) return false;
+        if (priceRange === '>30000' && !(v.vehicle_base_price > 30000)) return false;
+      }
 
-          if (minRating > 0 && v.rating < minRating) return false;
-
-          return true;
-        });
-      }, [search, selectedMake, selectedFuel, priceRange, minRating, allVehicles]);
+      return true;
+    });
+  }, [allVehicles, search, selectedMake, selectedFuel, priceRange]);
 
       return (
         <div className="min-h-screen">

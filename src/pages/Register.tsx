@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
@@ -16,14 +16,23 @@ const Register: React.FC = () => {
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const validatePassword = (password: string) => {
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>?/]/.test(password);
+    const minLength = password.length >= 8;
+    return hasUpper && hasLower && hasNumber && hasSymbol && minLength;
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirm) {
-      toast.error('Passwords do not match.');
+    if (!validatePassword(password)) {
+      toast.error('Password must be at least 8 characters with uppercase, lowercase, number, and symbol.');
       return;
     }
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters.');
+    if (password !== confirm) {
+      toast.error('Passwords do not match.');
       return;
     }
     if (!agreeToPolicies) {
@@ -38,10 +47,10 @@ const Register: React.FC = () => {
     setSubmitting(true);
     try {
       await register(name.trim(), email.trim(), password);
-      toast.success('Account created. You are now signed in.');
+      toast.success('Account created successfully!');
       navigate('/');
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to register.');
+    } catch {
+      toast.error('Failed to register.');
     } finally {
       setSubmitting(false);
     }
@@ -144,21 +153,19 @@ const Register: React.FC = () => {
                 <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700">
                   I agree to the{' '}
                   <a href="/terms" target="_blank" className="text-blue-600 hover:underline">
-                    Terms & Conditions
+                    Terms and Conditions
                   </a>
                 </label>
               </div>
             </div>
 
-            <div>
-              <button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium"
-                disabled={submitting}
-              >
-                {submitting ? 'Creating account...' : 'Create account'}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {submitting ? 'Creating Account...' : 'Create Account'}
+            </button>
           </form>
         </div>
       </main>
