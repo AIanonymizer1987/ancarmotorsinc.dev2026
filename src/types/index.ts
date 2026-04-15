@@ -10,7 +10,11 @@ export interface Vehicle {
   vehicle_year: string;
   vehicle_fuel_economy: string;
   vehicle_fuel_type: string;
-  stock_quantity?: number;
+  vehicle_transmission: string;
+  vehicle_lifting_capacity: string;
+  vehicle_towing_capacity: string;
+  vehicle_payload_capacity: string;
+  stock_quantity: number;
 }
 
 export interface User {
@@ -20,7 +24,7 @@ export interface User {
   user_role: string;
   user_phone_number: string;
   user_address: string;
-  user_name?: string; // May need to add
+  user_name: string;
 }
 
 export interface Order {

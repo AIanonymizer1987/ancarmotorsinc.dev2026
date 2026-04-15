@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getUsers, addUser, getUser, updateUser as updateUserAPI } from '../utils/api';
+import { getUsers, addUser, getUser, getEmployee, updateUser as updateUserAPI } from '../utils/api';
 
 export type PublicUser = {
   id: number;
@@ -70,42 +70,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const register = async (name: string, email: string, password: string, phone: string, address: string) => {
-    const existing = await getUser(email);
-    if (existing) {
-      throw new Error('An account with that email already exists.');
+    const existingUser = await getUser(email);
+    const existingEmployee = await getEmployee(email);
+
+    if (existingEmployee) {
+      throw new Error('An account with that email already exists as an employee. Please use your employee credentials.');
     }
-    const newUser = await addUser({
+
+    const userPayload = {
       user_email: email,
       user_password: password, // TODO: hash password
       user_role: 'user',
       user_phone_number: phone,
       user_address: address,
       user_name: name,
-    });
-    const publicUser: PublicUser = {
-      id: newUser.id,
-      name: newUser.user_name || '',
-      email: newUser.user_email,
-      role: newUser.user_role,
-      phone: newUser.user_phone_number,
-      address: newUser.user_address,
     };
+
+    if (existingUser) {
+      await updateUserAPI(existingUser.id, userPayload);
+    }
+
+    const publicUser: PublicUser = {
+      id: existingUser ? existingUser.id : (await addUser(userPayload)).id,
+      name: userPayload.user_name,
+      email: userPayload.user_email,
+      role: userPayload.user_role,
+      phone: userPayload.user_phone_number,
+      address: userPayload.user_address,
+    };
+
     setUser(publicUser);
     return publicUser;
   };
 
   const login = async (email: string, password: string) => {
-    const found = await getUser(email);
-    if (!found || found.user_password !== password) { // TODO: compare hashed
+    const foundUser = await getUser(email);
+    let account: any = foundUser;
+    let isEmployee = false;
+
+    if (!account) {
+      const employee = await getEmployee(email);
+      if (employee) {
+        account = employee;
+        isEmployee = true;
+      }
+    }
+
+    if (!account) {
       throw new Error('Invalid email or password.');
     }
+
+    const accountPassword = account.user_password || account.password;
+    if (accountPassword !== password) {
+      throw new Error('Invalid email or password.');
+    }
+
     const publicUser: PublicUser = {
-      id: found.id,
-      name: found.user_name || '',
-      email: found.user_email,
-      role: found.user_role,
-      phone: found.user_phone_number,
-      address: found.user_address,
+      id: account.id,
+      name: account.user_name || account.employee_name || '',
+      email: account.user_email || account.email,
+      role: account.user_role || (account.admin_role ? 'admin' : isEmployee ? 'employee' : 'user'),
+      phone: account.user_phone_number || account.phone_number || '',
+      address: account.user_address || account.address || '',
     };
     setUser(publicUser);
     return publicUser;

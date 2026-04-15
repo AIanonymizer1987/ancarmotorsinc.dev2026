@@ -9,7 +9,7 @@ const headers = {
 // Vehicles
 export const getVehicles = async (): Promise<Vehicle[]> => {
   try {
-    const response = await fetch(`${API_URL}/vehicles?select=*`, { headers });
+    const response = await fetch(`${API_URL}/public.vehicles?select=*`, { headers });
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Failed to fetch vehicles: ${response.status} ${response.statusText} - ${errorText}`);
@@ -22,14 +22,14 @@ export const getVehicles = async (): Promise<Vehicle[]> => {
 };
 
 export const getVehicle = async (id: number): Promise<Vehicle> => {
-  const response = await fetch(`${API_URL}/vehicles?vehicle_id=eq.${id}&select=*`, { headers });
+  const response = await fetch(`${API_URL}/public.vehicles?vehicle_id=eq.${id}&select=*`, { headers });
   if (!response.ok) throw new Error('Failed to fetch vehicle');
   const data = await response.json();
   return data[0];
 };
 
 export const updateVehicle = async (id: number, updates: Partial<Vehicle>): Promise<void> => {
-  const response = await fetch(`${API_URL}/vehicles?vehicle_id=eq.${id}`, {
+  const response = await fetch(`${API_URL}/public.vehicles?vehicle_id=eq.${id}`, {
     method: 'PATCH',
     headers,
     body: JSON.stringify(updates),
@@ -38,7 +38,7 @@ export const updateVehicle = async (id: number, updates: Partial<Vehicle>): Prom
 };
 
 export const addVehicle = async (vehicle: Omit<Vehicle, 'vehicle_id'>): Promise<Vehicle> => {
-  const response = await fetch(`${API_URL}/vehicles`, {
+  const response = await fetch(`${API_URL}/public.vehicles`, {
     method: 'POST',
     headers,
     body: JSON.stringify(vehicle),
@@ -48,7 +48,7 @@ export const addVehicle = async (vehicle: Omit<Vehicle, 'vehicle_id'>): Promise<
 };
 
 export const deleteVehicle = async (id: number): Promise<void> => {
-  const response = await fetch(`${API_URL}/vehicles?vehicle_id=eq.${id}`, {
+  const response = await fetch(`${API_URL}/public.vehicles?vehicle_id=eq.${id}`, {
     method: 'DELETE',
     headers,
   });
@@ -65,6 +65,13 @@ export const getUsers = async (): Promise<User[]> => {
 export const getUser = async (email: string): Promise<User | null> => {
   const response = await fetch(`${API_URL}/users?user_email=eq.${email}&select=*`, { headers });
   if (!response.ok) throw new Error('Failed to fetch user');
+  const data = await response.json();
+  return data[0] || null;
+};
+
+export const getEmployee = async (email: string): Promise<any | null> => {
+  const response = await fetch(`${API_URL}/employees?email=eq.${email}&select=*`, { headers });
+  if (!response.ok) throw new Error('Failed to fetch employee');
   const data = await response.json();
   return data[0] || null;
 };

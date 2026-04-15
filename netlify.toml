@@ -1,0 +1,14 @@
+[build]
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/neon/*"
+  to = "/.netlify/functions/neon/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/neon"
+  to = "/.netlify/functions/neon"
+  status = 200
+  force = true

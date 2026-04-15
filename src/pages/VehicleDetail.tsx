@@ -6,6 +6,12 @@ import { getVehicle } from '../utils/api';
 import type { Vehicle } from '../types';
 import { Calendar, Fuel, ArrowLeft } from 'lucide-react';
 
+const parseList = (value: string) =>
+  value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
     const VehicleDetail: React.FC = () => {
       const { id } = useParams<{ id: string }>();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
@@ -102,9 +108,13 @@ import { Calendar, Fuel, ArrowLeft } from 'lucide-react';
                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 mb-6">
                       <li className="flex items-center"><Calendar className="h-4 w-4 mr-2" /> Year: <span className="ml-2 font-medium text-gray-900">{vehicle.vehicle_year}</span></li>
                       <li className="flex items-center"><Fuel className="h-4 w-4 mr-2" /> Fuel Type: <span className="ml-2 font-medium text-gray-900">{vehicle.vehicle_fuel_type}</span></li>
-                      <li className="flex items-center"><span className="h-4 w-4 mr-2" />Color: <span className="ml-2 font-medium text-gray-900">{vehicle.vehicle_color}</span></li>
-                      <li className="flex items-center"><span className="h-4 w-4 mr-2" />Fuel Economy: <span className="ml-2 font-medium text-gray-900">{vehicle.vehicle_fuel_economy}</span></li>
-                      <li className="flex items-center"><span className="h-4 w-4 mr-2" />Stock: <span className="ml-2 font-medium text-gray-900">{vehicle.stock_quantity || 0}</span></li>
+                      <li className="flex items-center"><span className="h-4 w-4 mr-2" /> Color: <span className="ml-2 font-medium text-gray-900">{parseList(vehicle.vehicle_color).join(', ') || 'N/A'}</span></li>
+                      <li className="flex items-center"><span className="h-4 w-4 mr-2" /> Fuel Economy: <span className="ml-2 font-medium text-gray-900">{vehicle.vehicle_fuel_economy}</span></li>
+                      <li className="flex items-center"><span className="h-4 w-4 mr-2" /> Transmission: <span className="ml-2 font-medium text-gray-900">{parseList(vehicle.vehicle_transmission).join(', ') || 'N/A'}</span></li>
+                      <li className="flex items-center"><span className="h-4 w-4 mr-2" /> Stock: <span className="ml-2 font-medium text-gray-900">{vehicle.stock_quantity || 0}</span></li>
+                      <li className="flex items-center"><span className="h-4 w-4 mr-2" /> Lifting Capacity: <span className="ml-2 font-medium text-gray-900">{parseList(vehicle.vehicle_lifting_capacity).join(', ') || 'N/A'}</span></li>
+                      <li className="flex items-center"><span className="h-4 w-4 mr-2" /> Payload Capacity: <span className="ml-2 font-medium text-gray-900">{parseList(vehicle.vehicle_payload_capacity).join(', ') || 'N/A'}</span></li>
+                      <li className="flex items-center"><span className="h-4 w-4 mr-2" /> Towing Capacity: <span className="ml-2 font-medium text-gray-900">{parseList(vehicle.vehicle_towing_capacity).join(', ') || 'N/A'}</span></li>
                     </ul>
 
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -144,15 +154,31 @@ import { Calendar, Fuel, ArrowLeft } from 'lucide-react';
                   </div>
                   <div>
                     <dt className="font-medium text-gray-900">Color</dt>
-                    <dd>{vehicle.vehicle_color}</dd>
+                    <dd>{parseList(vehicle.vehicle_color).join(', ') || 'N/A'}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-gray-900">Fuel Economy</dt>
                     <dd>{vehicle.vehicle_fuel_economy}</dd>
                   </div>
                   <div>
+                    <dt className="font-medium text-gray-900">Transmission</dt>
+                    <dd>{parseList(vehicle.vehicle_transmission).join(', ') || 'N/A'}</dd>
+                  </div>
+                  <div>
                     <dt className="font-medium text-gray-900">Stock Quantity</dt>
                     <dd>{vehicle.stock_quantity || 0}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-gray-900">Lifting Capacity</dt>
+                    <dd>{parseList(vehicle.vehicle_lifting_capacity).join(', ') || 'N/A'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-gray-900">Payload Capacity</dt>
+                    <dd>{parseList(vehicle.vehicle_payload_capacity).join(', ') || 'N/A'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-gray-900">Towing Capacity</dt>
+                    <dd>{parseList(vehicle.vehicle_towing_capacity).join(', ') || 'N/A'}</dd>
                   </div>
                 </dl>
               </section>

@@ -6,12 +6,24 @@ type Props = {
   vehicle: Vehicle;
 };
 
+const parseList = (value: string) =>
+  value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 const InventoryCard: React.FC<Props> = ({ vehicle }) => {
   const formattedPrice = vehicle.vehicle_base_price.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
   });
+
+  const colors = parseList(vehicle.vehicle_color);
+  const transmissions = parseList(vehicle.vehicle_transmission);
+  const liftingCapacities = parseList(vehicle.vehicle_lifting_capacity);
+  const payloadCapacities = parseList(vehicle.vehicle_payload_capacity);
+  const towingCapacities = parseList(vehicle.vehicle_towing_capacity);
 
   return (
     <article className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow focus-within:ring-2 focus-within:ring-blue-500">
@@ -45,6 +57,32 @@ const InventoryCard: React.FC<Props> = ({ vehicle }) => {
           <p className="text-sm text-gray-700 mb-4 line-clamp-2">
             {vehicle.vehicle_description}
           </p>
+
+          <div className="grid gap-2 text-xs text-gray-500 mb-4">
+            <div className="flex flex-wrap gap-2 items-center">
+              {transmissions.length > 0 && (
+                <span className="px-2 py-1 rounded-full bg-gray-100">Transmission: {transmissions.join(', ')}</span>
+              )}
+              {colors.length > 0 && (
+                <span className="px-2 py-1 rounded-full bg-gray-100">Color: {colors.join(', ')}</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 items-center">
+              {liftingCapacities.length > 0 && (
+                <span className="px-2 py-1 rounded-full bg-gray-100">Lifting: {liftingCapacities.join(', ')}</span>
+              )}
+              {payloadCapacities.length > 0 && (
+                <span className="px-2 py-1 rounded-full bg-gray-100">Payload: {payloadCapacities.join(', ')}</span>
+              )}
+              {towingCapacities.length > 0 && (
+                <span className="px-2 py-1 rounded-full bg-gray-100">Towing: {towingCapacities.join(', ')}</span>
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Fuel Economy</span>
+              <span>{vehicle.vehicle_fuel_economy || 'N/A'}</span>
+            </div>
+          </div>
 
           <div className="flex items-center justify-between">
             <div>
