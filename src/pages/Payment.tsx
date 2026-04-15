@@ -17,6 +17,7 @@ const Payment: React.FC = () => {
 
   const [currentStep, setCurrentStep] = useState<Step>('otp');
   const [order, setOrder] = useState<any>(null);
+  const [transactionData, setTransactionData] = useState<any>(null);
   const [otp, setOtp] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,9 @@ const Payment: React.FC = () => {
       try {
         const orderData = await getOrder(parseInt(orderId));
         setOrder(orderData);
+        setTransactionData(
+          orderData.product_transaction ? JSON.parse(orderData.product_transaction) : null
+        );
       } catch {
         toast.error('Order not found');
         navigate('/');
@@ -101,6 +105,65 @@ const Payment: React.FC = () => {
     }
   };
 
+  const formatCurrency = (value: number | string | null | undefined) => {
+    const amount = Number(value) || 0;
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const paymentModeLabel = order?.product_payment === 'installment'
+    ? 'Installment'
+    : order?.product_payment === 'bank'
+    ? 'Bank Payment'
+    : 'Cash';
+
+  const amountDue = (() => {
+    if (!transactionData) return order?.product_total_price || 0;
+    if (order?.product_payment === 'cash') return transactionData.paymentDetails?.cashTotal || order.product_total_price;
+    if (order?.product_payment === 'bank') return transactionData.paymentDetails?.bankTotal || order.product_total_price;
+    if (order?.product_payment === 'installment') return transactionData.paymentDetails?.installment?.installmentTotal || order.product_total_price;
+    return order.product_total_price;
+  })();
+
+  const installmentInfo = order?.product_payment === 'installment'
+    ? transactionData?.paymentDetails?.installment
+    : null;
+
+  const paymentOptions = order?.product_payment === 'installment'
+    ? [
+        { value: 'credit_card', label: 'Credit Card' },
+        { value: 'bank_transfer', label: 'Bank Transfer' },
+      ]
+    : [
+        { value: 'cash', label: 'Cash / Over-the-counter' },
+        { value: 'bank_transfer', label: 'Bank Transfer' },
+      ];
+
+  const transactionSummary = transactionData?.paymentDetails || {};
+
+  const orderSummaryLines = [
+    { label: 'Subtotal', value: transactionSummary.subtotal ?? order?.product_total_price },
+    { label: 'Shipping', value: transactionSummary.shippingCost ?? 0 },
+    { label: 'Processing fee', value: transactionSummary.processingFee ?? 0 },
+  ];
+
+  if (order?.product_payment === 'bank') {
+    orderSummaryLines.push({ label: 'Bank transaction fee', value: transactionSummary.bankTransactionFee ?? 0 });
+  }
+
+  if (order?.product_payment === 'installment' && installmentInfo) {
+    orderSummaryLines.push({ label: `Down payment (${installmentInfo.downPaymentPercent}%)`, value: installmentInfo.downPaymentAmount ?? 0 });
+    orderSummaryLines.push({ label: 'Financed amount', value: installmentInfo.financedAmount ?? 0 });
+    orderSummaryLines.push({ label: 'Installment payment', value: installmentInfo.installmentPayment ?? 0 });
+  }
+
+  orderSummaryLines.push({ label: 'Amount Due', value: amountDue });
+
+  const isPaymentSelectionDisabled = !order?.product_payment;
+
   const sendReceipt = async () => {
     if (!user?.email || !order || !orderId) return;
 
@@ -156,6 +219,32 @@ const Payment: React.FC = () => {
             ))}
           </div>
 
+          <div className="bg-gray-50 p-4 rounded-md mb-6">
+            <h2 className="text-lg font-semibold mb-3">Order Summary</h2>
+            <div className="grid gap-2 text-sm text-gray-700">
+              <div className="flex justify-between">
+                <span>Vehicle</span>
+                <span>{order.product_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Qty</span>
+                <span>{order.product_quantity}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Payment type</span>
+                <span>{paymentModeLabel}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Amount due</span>
+                <span>{formatCurrency(amountDue)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Option</span>
+                <span>{order.product_shipping_option}</span>
+              </div>
+            </div>
+          </div>
+
           {currentStep === 'otp' && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">Verify Your Identity</h2>
@@ -191,42 +280,37 @@ const Payment: React.FC = () => {
 
           {currentStep === 'payment' && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Select Payment Method</h2>
+              <h2 className="text-lg font-semibold">Complete {paymentModeLabel} Payment</h2>
+              <p className="text-sm text-gray-600">
+                Please choose a payment gateway to finish your order. The current order flow is based on the selected {paymentModeLabel.toLowerCase()} option.
+              </p>
               <div className="space-y-2">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="credit_card"
-                    checked={paymentMethod === 'credit_card'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-2"
-                  />
-                  Credit Card
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="paypal"
-                    checked={paymentMethod === 'paypal'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-2"
-                  />
-                  PayPal
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="bank_transfer"
-                    checked={paymentMethod === 'bank_transfer'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-2"
-                  />
-                  Bank Transfer
-                </label>
+                {paymentOptions.map((option) => (
+                  <label key={option.value} className="flex items-center">
+                    <input
+                      type="radio"
+                      value={option.value}
+                      checked={paymentMethod === option.value}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="mr-2"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+              <div className="bg-white border border-gray-200 rounded-md p-4 text-sm text-gray-700">
+                <div className="font-semibold mb-2">Payment details</div>
+                {orderSummaryLines.map((line) => (
+                  <div key={line.label} className="flex justify-between py-1">
+                    <span>{line.label}</span>
+                    <span>{formatCurrency(line.value)}</span>
+                  </div>
+                ))}
               </div>
               <button
                 onClick={processPayment}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                disabled={!paymentMethod || isPaymentSelectionDisabled}
               >
                 Proceed to Payment
               </button>
@@ -255,7 +339,25 @@ const Payment: React.FC = () => {
               <div className="bg-green-50 p-4 rounded">
                 <p className="text-green-800">Your order has been completed successfully!</p>
                 <p className="text-sm text-gray-600 mt-2">Order ID: {orderId}</p>
-                <p className="text-sm text-gray-600">Total: ${order.product_total_price}</p>
+                <p className="text-sm text-gray-600">Payment type: {paymentModeLabel}</p>
+                <p className="text-sm text-gray-600">Amount paid: {formatCurrency(amountDue)}</p>
+                {installmentInfo && (
+                  <div className="mt-3 border-t border-green-200 pt-3 text-sm text-gray-700">
+                    <div className="font-semibold">Installment plan</div>
+                    <div className="flex justify-between py-1">
+                      <span>Term</span>
+                      <span>{installmentInfo.termMonths} months</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span>Frequency</span>
+                      <span>{installmentInfo.repaymentFrequency}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span>Monthly payment</span>
+                      <span>{formatCurrency(installmentInfo.installmentPayment)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <button
                 onClick={sendReceipt}
