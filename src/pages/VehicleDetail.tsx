@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { getVehicle } from '../utils/api';
@@ -14,6 +14,7 @@ const parseList = (value: string) =>
 
     const VehicleDetail: React.FC = () => {
       const { id } = useParams<{ id: string }>();
+      const navigate = useNavigate();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -57,9 +58,9 @@ const parseList = (value: string) =>
         <main className="py-16">
           <div className="max-w-4xl mx-auto px-4">
             <h1 className="text-3xl font-bold mb-4">Vehicle Data does not exist or cannot be found.</h1>
-            <p className="text-gray-600 mb-6">Please return to the inventory or try another selection.</p>
-            <Link to="/inventory" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md">
-              <ArrowLeft className="h-4 w-4" /> Back to Inventory
+            <p className="text-gray-600 mb-6">Please return to the vehicles page or try another selection.</p>
+            <Link to="/vehicles" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md">
+              <ArrowLeft className="h-4 w-4" /> Back to Vehicles
             </Link>
           </div>
         </main>
@@ -78,8 +79,8 @@ const parseList = (value: string) =>
           <main className="py-12">
             <div className="max-w-6xl mx-auto px-4">
               <div className="mb-6">
-                <Link to="/inventory" className="inline-flex items-center gap-2 text-gray-600 hover:underline">
-                  <ArrowLeft className="h-4 w-4" /> Back to Inventory
+                <Link to="/vehicles" className="inline-flex items-center gap-2 text-gray-600 hover:underline">
+                  <ArrowLeft className="h-4 w-4" /> Back to Vehicles
                 </Link>
               </div>
 
@@ -118,8 +119,18 @@ const parseList = (value: string) =>
                     </ul>
 
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <Link to="/services" className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700">Order Vehicle</Link>
-                      <Link to="/services" className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-md hover:bg-gray-50">Schedule Test Drive</Link>
+                      <button
+                        onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}`)}
+                        className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+                      >
+                        Order Vehicle
+                      </button>
+                      <button
+                        onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}`)}
+                        className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-md hover:bg-gray-50 transition"
+                      >
+                        Schedule Test Drive
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -77,7 +77,7 @@ export default function TestDriveForm({ onSuccess }: TestDriveFormProps) {
   };
 
   if (loading) return <div>Loading vehicle details...</div>;
-  if (!vehicle) return <div>No vehicle selected. Please select a vehicle from inventory.</div>;
+  if (!vehicle) return <div>No vehicle selected. Please select a vehicle from Vehicles.</div>;
 
   // Generate time options (9 AM to 5 PM)
   const timeOptions: string[] = [];

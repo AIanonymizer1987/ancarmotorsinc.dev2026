@@ -8,7 +8,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './src/pages/Home';
 import About from './src/pages/About';
 import Services from './src/pages/Services';
-import Inventory from './src/pages/Inventory';
+import Vehicles from './src/pages/Vehicles';
 import VehicleDetail from './src/pages/VehicleDetail';
 import Contact from './src/pages/Contact';
 import NotFound from './src/pages/NotFound';
@@ -32,7 +32,9 @@ const App: React.FC = () => {
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
               <Route path="/services" element={<Services />} />
-              <Route path="/inventory" element={<Inventory />} />
+              <Route path="/vehicles" element={<Vehicles />} />
+              <Route path="/vehicles/:id" element={<VehicleDetail />} />
+              <Route path="/inventory" element={<Vehicles />} />
               <Route path="/inventory/:id" element={<VehicleDetail />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />

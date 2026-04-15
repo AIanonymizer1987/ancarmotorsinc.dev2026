@@ -6,6 +6,13 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+// Generate 12-digit randomized ticket ID
+export const generateTicketId = (): string => {
+  return Math.floor(Math.random() * 999999999999)
+    .toString()
+    .padStart(12, '0');
+};
+
 // Vehicles
 export const getVehicles = async (): Promise<Vehicle[]> => {
   try {
@@ -149,6 +156,21 @@ export const getTestDrives = async (): Promise<any[]> => {
   return response.json();
 };
 
+export const getUserTestDrives = async (userId: string): Promise<any[]> => {
+  const response = await fetch(`${API_URL}/test_drives?user_id=eq.${userId}&select=*`, { headers });
+  if (!response.ok) throw new Error('Failed to fetch user test drives');
+  return response.json();
+};
+
+export const updateTestDrive = async (id: number, updates: any): Promise<void> => {
+  const response = await fetch(`${API_URL}/test_drives?id=eq.${id}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) throw new Error('Failed to update test drive');
+};
+
 export const addTestDrive = async (testDrive: any): Promise<any> => {
   const response = await fetch(`${API_URL}/test_drives`, {
     method: 'POST',
@@ -191,4 +213,78 @@ export const deleteSupplier = async (id: number): Promise<void> => {
     headers,
   });
   if (!response.ok) throw new Error('Failed to delete supplier');
+};
+
+// Tickets
+export const getTickets = async (): Promise<any[]> => {
+  const response = await fetch(`${API_URL}/tickets?select=*`, { headers });
+  if (!response.ok) throw new Error('Failed to fetch tickets');
+  return response.json();
+};
+
+export const getUserTickets = async (userId: string): Promise<any[]> => {
+  const response = await fetch(`${API_URL}/tickets?user_id=eq.${userId}&select=*`, { headers });
+  if (!response.ok) throw new Error('Failed to fetch user tickets');
+  return response.json();
+};
+
+export const addTicket = async (ticket: any): Promise<any> => {
+  const response = await fetch(`${API_URL}/tickets`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(ticket),
+  });
+  if (!response.ok) throw new Error('Failed to create ticket');
+  return response.json();
+};
+
+export const updateTicket = async (id: number, updates: any): Promise<void> => {
+  const response = await fetch(`${API_URL}/tickets?id=eq.${id}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) throw new Error('Failed to update ticket');
+};
+
+export const deleteTicket = async (id: number): Promise<void> => {
+  const response = await fetch(`${API_URL}/tickets?id=eq.${id}`, {
+    method: 'DELETE',
+    headers,
+  });
+  if (!response.ok) throw new Error('Failed to delete ticket');
+};
+
+// User Profile Updates
+export const changePassword = async (userId: number, oldPassword: string, newPassword: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/public.users?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({
+      user_password: newPassword,
+      old_password: oldPassword, // for verification on backend
+    }),
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to change password: ${error}`);
+  }
+};
+
+export const changeEmail = async (userId: number, newEmail: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/public.users?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ user_email: newEmail }),
+  });
+  if (!response.ok) throw new Error('Failed to change email');
+};
+
+export const updateProfilePicture = async (userId: number, pictureUrl: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/public.users?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ user_profile_picture: pictureUrl }),
+  });
+  if (!response.ok) throw new Error('Failed to update profile picture');
 };

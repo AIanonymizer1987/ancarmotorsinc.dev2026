@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { Star } from 'lucide-react';
 import type { Vehicle } from '../types';
 
 type Props = {
@@ -13,11 +14,18 @@ const parseList = (value: string) =>
     .filter(Boolean);
 
 const InventoryCard: React.FC<Props> = ({ vehicle }) => {
-  const formattedPrice = vehicle.vehicle_base_price.toLocaleString('en-US', {
+  const navigate = useNavigate();
+
+  // Format price in PHP with commas
+  const formattedPrice = new Intl.NumberFormat('en-PH', {
     style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  });
+    currency: 'PHP',
+    minimumFractionDigits: 0,
+  }).format(Number(vehicle.vehicle_base_price));
+
+  // Mock rating (random between 3.5 and 5)
+  const rating = (Math.random() * 1.5 + 3.5).toFixed(1);
+  const reviewCount = Math.floor(Math.random() * 45) + 5;
 
   const colors = parseList(vehicle.vehicle_color);
   const transmissions = parseList(vehicle.vehicle_transmission);
@@ -27,8 +35,8 @@ const InventoryCard: React.FC<Props> = ({ vehicle }) => {
 
   return (
     <article className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow focus-within:ring-2 focus-within:ring-blue-500">
-      <Link to={`/inventory/${vehicle.vehicle_id}`} className="block focus:outline-none" aria-label={`View details for ${vehicle.vehicle_year} ${vehicle.vehicle_make} ${vehicle.vehicle_model}`}>
-        <div className="w-full h-48 bg-gray-100 overflow-hidden">
+      <Link to={`/vehicles/${vehicle.vehicle_id}`} className="block focus:outline-none" aria-label={`View details for ${vehicle.vehicle_year} ${vehicle.vehicle_make} ${vehicle.vehicle_model}`}>
+        <div className="w-full h-48 bg-gray-100 overflow-hidden relative">
           <img
             src={vehicle.vehicle_img_url}
             alt={`${vehicle.vehicle_year} ${vehicle.vehicle_make} ${vehicle.vehicle_model}`}
@@ -42,6 +50,23 @@ const InventoryCard: React.FC<Props> = ({ vehicle }) => {
               <h3 className="text-lg font-semibold text-gray-900">
                 {vehicle.vehicle_year} {vehicle.vehicle_make} {vehicle.vehicle_model}
               </h3>
+              <div className="flex items-center gap-1 mt-1">
+                <div className="flex">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-3 w-3 ${
+                        i < Math.floor(Number(rating))
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-gray-600">
+                  {rating} ({reviewCount} reviews)
+                </span>
+              </div>
               <p className="text-sm text-gray-600 mt-1">
                 {vehicle.vehicle_fuel_type} • Stock: {vehicle.stock_quantity || 0}
               </p>
@@ -83,16 +108,23 @@ const InventoryCard: React.FC<Props> = ({ vehicle }) => {
               <span>{vehicle.vehicle_fuel_economy || 'N/A'}</span>
             </div>
           </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                View Details
-              </span>
-            </div>
-          </div>
         </div>
       </Link>
+      
+      <div className="px-4 pb-4 flex gap-2">
+        <button
+          onClick={() => navigate(`/vehicles/${vehicle.vehicle_id}`)}
+          className="flex-1 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+        >
+          View Details
+        </button>
+        <button
+          onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}`)}
+          className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+        >
+          Order Vehicle
+        </button>
+      </div>
     </article>
   );
 };

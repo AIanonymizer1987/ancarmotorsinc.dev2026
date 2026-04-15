@@ -65,3 +65,16 @@ export interface Supplier {
   contact_phone: string;
   address: string;
 }
+
+export interface Ticket {
+  id: number;
+  user_id: string;
+  username: string;
+  user_email: string;
+  nature_of_concern: string;
+  title: string;
+  body: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}

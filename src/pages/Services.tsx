@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import OrderVehicleForm from '../components/OrderVehicleForm';
@@ -8,6 +9,10 @@ type ServiceType = 'order' | 'test-drive';
 
 export default function Services() {
   const [activeService, setActiveService] = useState<ServiceType>('order');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const vehicleId = searchParams.get('vehicle');
+  const hasVehicle = !!vehicleId;
 
   return (
     <div className="min-h-screen">
@@ -44,11 +49,31 @@ export default function Services() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-8">
-            {activeService === 'order' ? (
-              <OrderVehicleForm />
-            ) : (
-              <TestDriveForm />
+          <div className="relative">
+            <div className="bg-white rounded-lg shadow-md p-8">
+              {activeService === 'order' ? (
+                <OrderVehicleForm />
+              ) : (
+                <TestDriveForm />
+              )}
+            </div>
+            
+            {/* Overlay when no vehicle selected */}
+            {!hasVehicle && (
+              <div className="absolute inset-0 bg-black bg-opacity-60 rounded-lg flex items-center justify-center">
+                <div className="bg-white p-8 rounded-lg text-center max-w-sm">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">No Vehicle Selected</h2>
+                  <p className="text-gray-600 mb-6">
+                    Please select a vehicle from the Vehicles page first to proceed with your {activeService === 'order' ? 'order' : 'test drive'} request.
+                  </p>
+                  <button
+                    onClick={() => navigate('/vehicles')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                  >
+                    Browse Vehicles
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

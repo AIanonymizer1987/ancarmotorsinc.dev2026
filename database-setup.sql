@@ -11,6 +11,10 @@ CREATE TABLE IF NOT EXISTS vehicles (
   vehicle_year VARCHAR(4) NOT NULL,
   vehicle_fuel_economy VARCHAR(50) DEFAULT '25 mpg',
   vehicle_fuel_type VARCHAR(50) NOT NULL,
+  vehicle_transmission VARCHAR(255) DEFAULT '',
+  vehicle_lifting_capacity VARCHAR(255) DEFAULT '',
+  vehicle_towing_capacity VARCHAR(255) DEFAULT '',
+  vehicle_payload_capacity VARCHAR(255) DEFAULT '',
   stock_quantity INTEGER DEFAULT 5,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -87,14 +91,32 @@ CREATE TABLE IF NOT EXISTS suppliers (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create tickets table
+CREATE TABLE IF NOT EXISTS tickets (
+  id SERIAL PRIMARY KEY,
+  ticket_id VARCHAR(12) UNIQUE NOT NULL,
+  user_id VARCHAR(255) NOT NULL,
+  username VARCHAR(255),
+  user_email VARCHAR(255),
+  nature_of_concern VARCHAR(100) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  body TEXT NOT NULL,
+  status VARCHAR(50) DEFAULT 'open',
+  responses TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Enable RLS on all tables
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE test_drives ENABLE ROW LEVEL SECURITY;
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
 
 -- Create policies to allow all operations (adjust for production)
 CREATE POLICY "Allow all operations on users" ON users FOR ALL USING (true);
 CREATE POLICY "Allow all operations on orders" ON orders FOR ALL USING (true);
 CREATE POLICY "Allow all operations on test_drives" ON test_drives FOR ALL USING (true);
 CREATE POLICY "Allow all operations on suppliers" ON suppliers FOR ALL USING (true);
+CREATE POLICY "Allow all operations on tickets" ON tickets FOR ALL USING (true);

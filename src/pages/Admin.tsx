@@ -2,12 +2,12 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
-import { getVehicles, getUsers, getOrders, getTestDrives, getSuppliers, addVehicle, updateVehicle, deleteVehicle, updateOrder, addSupplier, updateSupplier, deleteSupplier } from '../utils/api';
+import { getVehicles, getUsers, getOrders, getTestDrives, getSuppliers, addVehicle, updateVehicle, deleteVehicle, updateOrder, addSupplier, updateSupplier, deleteSupplier, getTickets, updateTicket } from '../utils/api';
 import type { Vehicle, Order, User } from '../types';
 import { toast } from 'react-toastify';
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 
-type ViewType = 'dashboard' | 'vehicles' | 'orders' | 'suppliers' | 'analytics';
+type ViewType = 'dashboard' | 'vehicles' | 'orders' | 'suppliers' | 'analytics' | 'customer-service';
 
 type VehicleFormState = Omit<Vehicle, 'vehicle_id' | 'vehicle_color' | 'vehicle_transmission' | 'vehicle_lifting_capacity' | 'vehicle_towing_capacity' | 'vehicle_payload_capacity'> & {
   vehicle_color: string[];
@@ -25,6 +25,7 @@ const Admin: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [vehicleForm, setVehicleForm] = useState<VehicleFormState>({
@@ -57,16 +58,18 @@ const Admin: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [vehiclesData, ordersData, usersData, suppliersData] = await Promise.all([
+        const [vehiclesData, ordersData, usersData, suppliersData, ticketsData] = await Promise.all([
           getVehicles(),
           getOrders(),
           getUsers(),
           getSuppliers(),
+          getTickets(),
         ]);
         setVehicles(vehiclesData);
         setOrders(ordersData);
         setUsers(usersData);
         setSuppliers(suppliersData);
+        setTickets(ticketsData);
       } catch {
         toast.error('Failed to load data');
       } finally {
@@ -358,6 +361,12 @@ const Admin: React.FC = () => {
                   className={`w-full text-left px-3 py-2 rounded ${currentView === 'analytics' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
                 >
                   Analytics
+                </button>
+                <button
+                  onClick={() => setCurrentView('customer-service')}
+                  className={`w-full text-left px-3 py-2 rounded ${currentView === 'customer-service' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+                >
+                  Customer Service
                 </button>
               </nav>
             </div>
@@ -850,6 +859,34 @@ const Admin: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {currentView === 'customer-service' && (
+              <div className="space-y-6">
+                <h1 className="text-2xl font-bold">Customer Service Tickets</h1>
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead className="bg-gray-100 border-b">
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-900">Ticket ID</th>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-900">Customer</th>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-900">Subject</th>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-900">Category</th>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-900">Status</th>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-900">Date</th>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-900">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {tickets.map((ticket) => (
+                          <TicketRow key={ticket.id} ticket={ticket} onUpdate={() => setTickets(tickets.map(t => t.id === ticket.id ? {...t, status: 'updated'} : t))} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
             </div>
           </div>
         </div>
@@ -860,3 +897,126 @@ const Admin: React.FC = () => {
 };
 
 export default Admin;
+
+// Ticket Row Component with Response Functionality
+const TicketRow: React.FC<{ ticket: any; onUpdate: () => void }> = ({ ticket, onUpdate }) => {
+  const [showResponse, setShowResponse] = useState(false);
+  const [responseText, setResponseText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleAddResponse = async () => {
+    if (!responseText.trim()) {
+      toast.error('Please enter a response');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const responses = ticket.responses ? JSON.parse(ticket.responses) : [];
+      responses.push({
+        message: responseText,
+        timestamp: new Date().toISOString(),
+        admin: true,
+      });
+      
+      await updateTicket(ticket.id, {
+        responses: JSON.stringify(responses),
+      });
+
+      toast.success('Response added successfully');
+      setResponseText('');
+      setShowResponse(false);
+      onUpdate();
+    } catch (error) {
+      toast.error('Failed to add response');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateStatus = async (newStatus: string) => {
+    try {
+      await updateTicket(ticket.id, { status: newStatus });
+      toast.success(`Ticket status updated to ${newStatus}`);
+      onUpdate();
+    } catch (error) {
+      toast.error('Failed to update ticket status');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    if (status === 'closed') return 'bg-gray-100 text-gray-800';
+    if (status === 'resolved') return 'bg-green-100 text-green-800';
+    if (status === 'in-progress') return 'bg-blue-100 text-blue-800';
+    return 'bg-yellow-100 text-yellow-800';
+  };
+
+  return (
+    <>
+      <tr>
+        <td className="px-4 py-3 text-sm font-mono text-blue-600">#{ticket.ticket_id}</td>
+        <td className="px-4 py-3 text-sm">{ticket.username}</td>
+        <td className="px-4 py-3 text-sm font-medium">{ticket.title}</td>
+        <td className="px-4 py-3 text-sm capitalize">{ticket.nature_of_concern}</td>
+        <td className="px-4 py-3">
+          <select
+            value={ticket.status}
+            onChange={(e) => handleUpdateStatus(e.target.value)}
+            className={`px-3 py-1 rounded text-sm font-medium ${getStatusColor(ticket.status)}`}
+          >
+            <option value="open">Open</option>
+            <option value="in-progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+        </td>
+        <td className="px-4 py-3 text-sm">{new Date(ticket.created_at).toLocaleDateString()}</td>
+        <td className="px-4 py-3 text-sm">
+          <button
+            onClick={() => setShowResponse(!showResponse)}
+            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
+          >
+            {showResponse ? 'Cancel' : 'Reply'}
+          </button>
+        </td>
+      </tr>
+      {showResponse && (
+        <tr>
+          <td colSpan={7} className="px-4 py-3 bg-gray-50">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Customer Message:</label>
+                <p className="bg-white p-3 rounded text-sm text-gray-700 mb-3">{ticket.body}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Your Response:</label>
+                <textarea
+                  value={responseText}
+                  onChange={(e) => setResponseText(e.target.value)}
+                  placeholder="Type your response here..."
+                  className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  rows={3}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowResponse(false)}
+                  className="px-4 py-2 border rounded hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddResponse}
+                  disabled={submitting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {submitting ? 'Sending...' : 'Send Response'}
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+};

@@ -5,9 +5,11 @@ export type PublicUser = {
   id: number;
   name: string;
   email: string;
+  user_email: string;
   role: string;
   phone: string;
   address: string;
+  user_profile_picture?: string;
 };
 
 type AuthContextValue = {

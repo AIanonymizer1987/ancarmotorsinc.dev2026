@@ -102,7 +102,7 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
   };
 
   if (loading) return <div>Loading vehicle details...</div>;
-  if (!vehicle) return <div>No vehicle selected. Please select a vehicle from inventory.</div>;
+  if (!vehicle) return <div>No vehicle selected. Please select a vehicle from Vehicles.</div>;
 
   return (
     <div className="max-w-4xl mx-auto">

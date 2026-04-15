@@ -86,7 +86,7 @@ const parseFilterValue = (value) => {
   return { operator: '=', value };
 };
 
-const buildWhereClause = (queryParams) => {
+const buildWhereClause = (queryParams, startIndex = 1) => {
   const conditions = [];
   const values = [];
 
@@ -96,7 +96,7 @@ const buildWhereClause = (queryParams) => {
     const parsed = parseFilterValue(value);
     if (!parsed) continue;
     values.push(parsed.value);
-    conditions.push(`${key} ${parsed.operator} $${values.length}`);
+    conditions.push(`${key} ${parsed.operator} $${values.length + startIndex - 1}`);
   }
 
   return {
@@ -167,7 +167,7 @@ const buildUpdateQuery = (table, body, queryParams) => {
 
   const values = updates.map((field) => body[field]);
   const setClause = updates.map((field, index) => `${field} = $${index + 1}`).join(', ');
-  const where = buildWhereClause(queryParams);
+  const where = buildWhereClause(queryParams, values.length + 1);
   if (!where.clause) throw new Error('Update operations require at least one filter parameter.');
 
   const sql = `UPDATE ${table} SET ${setClause}${where.clause} RETURNING *`;

@@ -1,13 +1,13 @@
 import React, { useMemo, useState, useEffect } from 'react';
-    import Header from '../components/Header';
-    import Footer from '../components/Footer';
-    import InventoryCard from '../components/InventoryCard';
-    import { getVehicles } from '../utils/api';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import InventoryCard from '../components/InventoryCard';
+import { getVehicles } from '../utils/api';
 import type { Vehicle } from '../types';
-    import { Filter, Search } from 'lucide-react';
-    import { Link } from 'react-router-dom';
+import { Filter, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-    export default function Inventory() {
+export default function Vehicles() {
       const [search, setSearch] = useState('');
       const [selectedMake, setSelectedMake] = useState<string>('All');
       const [selectedFuel, setSelectedFuel] = useState<string>('All');
@@ -42,7 +42,7 @@ import type { Vehicle } from '../types';
     return ['All', ...setOfFuel];
   }, [allVehicles]);
 
-  const filteredVehicles = useMemo(() => {
+      const filteredVehicles = useMemo(() => {
     return allVehicles.filter((v: Vehicle) => {
       // search by make, model, year
       const query = search.trim().toLowerCase();
@@ -55,9 +55,10 @@ import type { Vehicle } from '../types';
       if (selectedFuel !== 'All' && v.vehicle_fuel_type !== selectedFuel) return false;
 
       if (priceRange !== 'All') {
-        if (priceRange === '<20000' && !(v.vehicle_base_price < 20000)) return false;
-        if (priceRange === '20000-30000' && !(v.vehicle_base_price >= 20000 && v.vehicle_base_price <= 30000)) return false;
-        if (priceRange === '>30000' && !(v.vehicle_base_price > 30000)) return false;
+        const price = Number(v.vehicle_base_price);
+        if (priceRange === '<1000000' && !(price < 1000000)) return false;
+        if (priceRange === '1000000-5000000' && !(price >= 1000000 && price <= 5000000)) return false;
+        if (priceRange === '>5000000' && !(price > 5000000)) return false;
       }
 
       return true;
@@ -70,19 +71,19 @@ import type { Vehicle } from '../types';
           <main className="py-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="mb-8">
-                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">Vehicle Inventory</h1>
-                <p className="text-gray-600">Browse our current inventory. Use the search and filters to narrow results.</p>
+                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">Vehicles</h1>
+                <p className="text-gray-600">Browse our current vehicles. Use the search and filters to narrow results.</p>
               </div>
 
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center w-full md:w-2/3">
-                  <label htmlFor="inventory-search" className="sr-only">Search inventory</label>
+                  <label htmlFor="vehicle-search" className="sr-only">Search vehicles</label>
                   <div className="relative w-full">
                     <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
                       <Search className="h-5 w-5" />
                     </span>
                     <input
-                      id="inventory-search"
+                      id="vehicle-search"
                       type="search"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
@@ -98,19 +99,19 @@ import type { Vehicle } from '../types';
                     onClick={() => setShowFilters((s) => !s)}
                     className="inline-flex items-center gap-2 px-4 py-2 border rounded-md bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
                     aria-expanded={showFilters}
-                    aria-controls="inventory-filters"
+                    aria-controls="vehicle-filters"
                   >
                     <Filter className="h-5 w-5 text-gray-600" />
                     <span className="text-sm text-gray-700">Filters</span>
                   </button>
-                  <Link to="/inventory" className="ml-3 text-sm text-gray-500 hover:underline">Reset</Link>
+                  <Link to="/vehicles" className="ml-3 text-sm text-gray-500 hover:underline">Reset</Link>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <aside id="inventory-filters" className={`lg:col-span-1 ${showFilters ? 'block' : 'hidden'} lg:block`}>
+                <aside id="vehicle-filters" className={`lg:col-span-1 ${showFilters ? 'block' : 'hidden'} lg:block`}>
                   <section className="bg-white p-4 rounded-md shadow-sm">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-3">Filter Inventory</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-3">Filter Vehicles</h2>
 
                     <div className="mb-4">
                       <label htmlFor="make" className="block text-sm font-medium text-gray-700 mb-1">Make</label>
@@ -141,7 +142,7 @@ import type { Vehicle } from '../types';
                     </div>
 
                     <div className="mb-4">
-                      <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                      <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Price (PHP)</label>
                       <select
                         id="price"
                         value={priceRange}
@@ -149,9 +150,9 @@ import type { Vehicle } from '../types';
                         className="block w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="All">All</option>
-                        <option value="<20000">Below $20,000</option>
-                        <option value="20000-30000">$20,000 - $30,000</option>
-                        <option value=">30000">Above $30,000</option>
+                        <option value="<1000000">Below ₱1,000,000</option>
+                        <option value="1000000-5000000">₱1,000,000 - ₱5,000,000</option>
+                        <option value=">5000000">Above ₱5,000,000</option>
                       </select>
                     </div>
 

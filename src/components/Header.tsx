@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { Menu, X, ChevronDown, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Header = () => {
@@ -13,28 +13,34 @@ const Header = () => {
     { name: 'Home', href: '/' },
     { name: 'About', href: '/about' },
     { name: 'Services', href: '/services' },
-    { name: 'Inventory', href: '/inventory' },
+    { name: 'Vehicles', href: '/vehicles' },
     { name: 'Contact', href: '/contact' }
   ];
 
   const isAdmin = user?.email?.toLowerCase() === 'admin@ancarmotors.com';
 
-  const isActive = (href: string) => location.pathname === href;
+  const isActive = (href: string) => {
+    if (href === '/vehicles') {
+      return [
+        '/vehicles',
+        '/inventory'
+      ].some((route) => location.pathname === route || location.pathname.startsWith(`${route}/`));
+    }
+    return location.pathname === href;
+  };
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex-shrink-0">
-            <Link to="/" className="flex items-center">
+            <Link to="/" className="flex items-center gap-3">
               <img
                 src="https://res.cloudinary.com/dy3vb87qz/image/upload/v1773986536/AncarLogo.7ad7473b37e000adbeb6-BmDIH5my_srdoz3.png"
                 alt="Ancar Motors Inc Logo"
                 className="h-10 w-auto"
               />
-              <Link to="/" className="text-2xl font-bold text-blue-600">
-              ANCAR MOTORS INC
-            </Link>
+              <span className="text-2xl font-bold text-blue-600">ANCAR MOTORS INC</span>
             </Link>
           </div>
           
@@ -62,8 +68,19 @@ const Header = () => {
                 <div className="relative">
                   <button
                     onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-                    className="flex items-center space-x-1 text-sm text-gray-700 hover:text-blue-600"
+                    className="flex items-center space-x-2 text-sm text-gray-700 hover:text-blue-600"
                   >
+                    {user.user_profile_picture ? (
+                      <img
+                        src={user.user_profile_picture}
+                        alt={user.name}
+                        className="h-8 w-8 rounded-full object-cover border border-gray-300"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <User className="h-4 w-4 text-blue-600" />
+                      </div>
+                    )}
                     <span>Hello, <strong>{user.name}</strong></span>
                     <ChevronDown className="h-4 w-4" />
                   </button>
@@ -77,11 +94,11 @@ const Header = () => {
                         Profile Dashboard
                       </Link>
                       <Link
-                        to="/orders"
+                        to="/my-activities"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsUserDropdownOpen(false)}
                       >
-                        Orders Section
+                        My Activities
                       </Link>
                     </div>
                   )}
