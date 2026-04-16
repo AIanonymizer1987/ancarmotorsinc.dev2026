@@ -4,7 +4,8 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import { Phone } from 'lucide-react';
+import { requestEmailVerification } from '../utils/api';
+import { sendVerificationEmail, generateVerificationCode } from '../utils/email';
 
 const Register: React.FC = () => {
   const { register } = useAuth();
@@ -17,6 +18,7 @@ const Register: React.FC = () => {
   const [confirm, setConfirm] = useState('');
   const [agreeToPolicies, setAgreeToPolicies] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [verificationMethod, setVerificationMethod] = useState<'code' | 'link'>('code');
   const [submitting, setSubmitting] = useState(false);
 
   const validatePassword = (password: string) => {
@@ -49,11 +51,21 @@ const Register: React.FC = () => {
 
     setSubmitting(true);
     try {
-      await register(name.trim(), email.trim(), password, phone.trim(), address.trim());
-      toast.success('Account created successfully!');
-      navigate('/');
-    } catch {
-      toast.error('Failed to register.');
+      const user = await register(name.trim(), email.trim(), password, phone.trim(), address.trim());
+      
+      // Request email verification
+      const code = generateVerificationCode();
+      const requestedAt = new Date().toISOString();
+      await requestEmailVerification(user.id, code, requestedAt);
+      
+      // Send verification email
+      const verificationLink = verificationMethod === 'link' ? `${window.location.origin}/verify-email?code=${code}&email=${encodeURIComponent(email)}` : undefined;
+      await sendVerificationEmail(email, code, verificationMethod, verificationLink);
+      
+      toast.success('Account created successfully! Please check your email for verification instructions.');
+      navigate('/verify-email');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to register.');
     } finally {
       setSubmitting(false);
     }
@@ -187,6 +199,40 @@ const Register: React.FC = () => {
                     Terms and Conditions
                   </a>
                 </label>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email Verification Method</label>
+              <div className="space-y-2">
+                <div className="flex items-center">
+                  <input
+                    id="code"
+                    type="radio"
+                    name="verification"
+                    value="code"
+                    checked={verificationMethod === 'code'}
+                    onChange={(e) => setVerificationMethod(e.target.value as 'code' | 'link')}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <label htmlFor="code" className="ml-2 text-sm text-gray-700">
+                    Send verification code via email
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    id="link"
+                    type="radio"
+                    name="verification"
+                    value="link"
+                    checked={verificationMethod === 'link'}
+                    onChange={(e) => setVerificationMethod(e.target.value as 'code' | 'link')}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <label htmlFor="link" className="ml-2 text-sm text-gray-700">
+                    Send verification link via email
+                  </label>
+                </div>
               </div>
             </div>
 

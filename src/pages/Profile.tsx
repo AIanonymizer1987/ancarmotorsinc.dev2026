@@ -3,7 +3,8 @@ import { Upload, Lock, Mail } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
-import { updateProfilePicture, changePassword, changeEmail } from '../utils/api';
+import { changeEmail, changePassword, requestEmailVerification, requestPasswordChangeVerification, updateProfilePicture, verifyPasswordChangeCode } from '../utils/api';
+import { sendPasswordChangeVerificationEmail, generateVerificationCode, sendVerificationEmail } from '../utils/email';
 import { toast } from 'react-toastify';
 
 export default function Profile() {
@@ -22,6 +23,7 @@ export default function Profile() {
     oldPassword: '',
     newPassword: '',
     confirmPassword: '',
+    verificationCode: '',
   });
   
   const [emailData, setEmailData] = useState({
@@ -30,7 +32,10 @@ export default function Profile() {
   });
   
   const [pictureUrl, setPictureUrl] = useState('');
+  const [verificationMethod, setVerificationMethod] = useState<'code' | 'link'>('code');
   const [submitting, setSubmitting] = useState(false);
+  const [passwordChangeStep, setPasswordChangeStep] = useState<'form' | 'verify'>('form');
+  const [verificationSending, setVerificationSending] = useState(false);
 
   if (!user) {
     return (
@@ -72,31 +77,78 @@ export default function Profile() {
     setIsEditing(false);
   };
 
+  const handleSendVerification = async () => {
+    const code = generateVerificationCode();
+    const requestedAt = new Date().toISOString();
+    setVerificationSending(true);
+
+    try {
+      await requestEmailVerification(user.id, code, requestedAt);
+      const verificationLink = verificationMethod === 'link'
+        ? `${window.location.origin}/verify-email?code=${code}&email=${encodeURIComponent(user.email)}`
+        : undefined;
+      await sendVerificationEmail(user.email, code, verificationMethod, verificationLink);
+      toast.success('Verification message sent. Check your inbox.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to send verification email.');
+    } finally {
+      setVerificationSending(false);
+    }
+  };
+
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passwordData.oldPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      toast.error('All password fields are required');
-      return;
-    }
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('New passwords do not match');
-      return;
-    }
-    if (passwordData.newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
+    if (passwordChangeStep === 'form') {
+      if (!passwordData.oldPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+        toast.error('All password fields are required');
+        return;
+      }
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        toast.error('New passwords do not match');
+        return;
+      }
+      if (passwordData.newPassword.length < 8) {
+        toast.error('Password must be at least 8 characters');
+        return;
+      }
 
-    setSubmitting(true);
-    try {
-      await changePassword(user.id, passwordData.oldPassword, passwordData.newPassword);
-      toast.success('Password changed successfully');
-      setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
-      setActiveTab('profile');
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to change password');
-    } finally {
-      setSubmitting(false);
+      setSubmitting(true);
+      try {
+        const code = generateVerificationCode();
+        const requestedAt = new Date().toISOString();
+        await requestPasswordChangeVerification(user.id, code, requestedAt);
+        await sendPasswordChangeVerificationEmail(user.email, code, 'code');
+        setPasswordChangeStep('verify');
+        toast.success('Verification code sent to your email');
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to send verification');
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      // Verify code and change password
+      if (!passwordData.verificationCode) {
+        toast.error('Verification code is required');
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        const isValid = await verifyPasswordChangeCode(user.id, passwordData.verificationCode);
+        if (!isValid) {
+          toast.error('Invalid verification code');
+          return;
+        }
+        await changePassword(user.id, passwordData.oldPassword, passwordData.newPassword);
+        toast.success('Password changed successfully');
+        setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '', verificationCode: '' });
+        setPasswordChangeStep('form');
+        setActiveTab('profile');
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to change password');
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -236,7 +288,54 @@ export default function Profile() {
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   ) : (
-                    <p className="py-2 text-gray-900">{user.email}</p>
+                    <div className="py-2">
+                      <p className="text-gray-900">{user.email}</p>
+                      {user.emailVerified ? (
+                        <p className="text-sm text-green-600 mt-1">✓ Email verified</p>
+                      ) : (
+                        <>
+                          <p className="text-sm text-red-600 mt-1">✗ Email not verified</p>
+                          <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+                            <p className="text-sm text-yellow-900 mb-3">Verify your email to unlock full account access.</p>
+                            <div className="space-y-2 mb-3">
+                              <label className="text-sm font-medium text-gray-700">Verification preference</label>
+                              <div className="flex gap-4">
+                                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                                  <input
+                                    type="radio"
+                                    name="profileVerificationMethod"
+                                    value="code"
+                                    checked={verificationMethod === 'code'}
+                                    onChange={() => setVerificationMethod('code')}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                  />
+                                  Code
+                                </label>
+                                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                                  <input
+                                    type="radio"
+                                    name="profileVerificationMethod"
+                                    value="link"
+                                    checked={verificationMethod === 'link'}
+                                    onChange={() => setVerificationMethod('link')}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                  />
+                                  Link
+                                </label>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleSendVerification}
+                              disabled={verificationSending}
+                              className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition"
+                            >
+                              {verificationSending ? 'Sending...' : 'Send verification'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div>
@@ -327,44 +426,81 @@ export default function Profile() {
             <div className="bg-white shadow rounded-lg p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-6">Change Password</h2>
               <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
-                  <input
-                    type="password"
-                    value={passwordData.oldPassword}
-                    onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
-                  <input
-                    type="password"
-                    value={passwordData.newPassword}
-                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
-                  <input
-                    type="password"
-                    value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition"
-                >
-                  {submitting ? 'Updating...' : 'Update Password'}
-                </button>
+                {passwordChangeStep === 'form' ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+                      <input
+                        type="password"
+                        value={passwordData.oldPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                      <input
+                        type="password"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                      <input
+                        type="password"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition"
+                    >
+                      {submitting ? 'Sending...' : 'Send Verification Code'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
+                      <input
+                        type="text"
+                        value={passwordData.verificationCode}
+                        onChange={(e) => setPasswordData({ ...passwordData, verificationCode: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter code from email"
+                        required
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPasswordChangeStep('form');
+                          setPasswordData({ ...passwordData, verificationCode: '' });
+                        }}
+                        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition"
+                      >
+                        {submitting ? 'Updating...' : 'Update Password'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </form>
             </div>
           )}

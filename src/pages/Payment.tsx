@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { getOrder, updateOrder } from '../utils/api';
+import { sendOrderReceiptEmail, sendInstallmentPaymentNoticeEmail } from '../utils/email';
 import { toast } from 'react-toastify';
 import * as emailjs from '@emailjs/browser';
 
@@ -22,16 +23,27 @@ const Payment: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState('');
   const [loading, setLoading] = useState(true);
   const [otpSent, setOtpSent] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [transactionResult, setTransactionResult] = useState<'success' | 'failed' | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState<any>(null);
 
   useEffect(() => {
     if (!user || !orderId) {
-      navigate('/');
+      navigate('/login');
       return;
     }
 
     const fetchOrder = async () => {
       try {
         const orderData = await getOrder(parseInt(orderId));
+        if (!orderData) {
+          throw new Error('Order not found');
+        }
+        if (orderData.user_id !== user.id.toString()) {
+          toast.error('You are not authorized to view this payment.');
+          navigate('/');
+          return;
+        }
         setOrder(orderData);
         setTransactionData(
           orderData.product_transaction ? JSON.parse(orderData.product_transaction) : null
@@ -81,23 +93,50 @@ const Payment: React.FC = () => {
     }
   };
 
+  const mockPaymentProcess = async (method: string, amount: number) => {
+    setPaymentProcessing(true);
+    setTransactionResult(null);
+    const result = await new Promise<'success' | 'failed'>((resolve) => {
+      setTimeout(() => {
+        const successRate = method === 'bank_transfer' ? 0.85 : method === 'credit_card' ? 0.9 : 0.95;
+        const isSuccessful = Math.random() < successRate;
+        resolve(isSuccessful ? 'success' : 'failed');
+      }, 1600);
+    });
+    setPaymentProcessing(false);
+    return result;
+  };
+
   const processPayment = async () => {
     if (!paymentMethod) {
       toast.error('Please select a payment method');
       return;
     }
+    if (!order) {
+      toast.error('Order not loaded');
+      return;
+    }
 
-    // Mock payment processing
-    setTimeout(() => {
+    const result = await mockPaymentProcess(paymentMethod, Number(amountDue));
+    setTransactionResult(result);
+    setPaymentDetails({ method: paymentMethod, amount: amountDue, timestamp: new Date().toISOString() });
+
+    if (result === 'success') {
       setCurrentStep('verification');
-    }, 2000);
+      toast.success('Payment authorization succeeded. Finalizing transaction...');
+    } else {
+      toast.error('Payment failed. Please retry or choose another method.');
+    }
   };
 
   const completePayment = async () => {
     if (!orderId) return;
 
     try {
-      await updateOrder(parseInt(orderId), { product_status: 'completed' });
+      await updateOrder(parseInt(orderId), {
+        product_status: 'completed',
+        product_payment_status: 'paid',
+      });
       setCurrentStep('receipt');
       toast.success('Payment completed successfully');
     } catch {
@@ -167,17 +206,30 @@ const Payment: React.FC = () => {
   const sendReceipt = async () => {
     if (!user?.email || !order || !orderId) return;
 
+    const detailsHtml = `
+      <table style="width:100%;font-size:14px;border-collapse:collapse;">
+        <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Order code</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${order.order_code || 'N/A'}</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Vehicle</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${order.product_name} (${order.product_model})</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Payment type</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${paymentModeLabel}</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Amount due</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${formatCurrency(amountDue)}</td></tr>
+      </table>
+    `;
+
     try {
-      await emailjs.send(
-        import.meta.env.VITE_EMAILJS_SERVICE_ID,
-        import.meta.env.VITE_EMAILJS_RECEIPT_TEMPLATE_ID,
-        {
-          to_email: user.email,
-          order_id: orderId,
-          total_price: order.product_total_price,
-        },
-        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-      );
+      await sendOrderReceiptEmail(user.email, order, detailsHtml);
+
+      if (order.product_payment === 'installment' && installmentInfo) {
+        const installmentHtml = `
+          <table style="width:100%;font-size:14px;border-collapse:collapse;">
+            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Down payment</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${formatCurrency(installmentInfo.downPaymentAmount)} (${installmentInfo.downPaymentPercent}%)</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Financed amount</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${formatCurrency(installmentInfo.financedAmount)}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Installment</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${formatCurrency(installmentInfo.installmentPayment)} / month</td></tr>
+            <tr><td style="padding:8px;"><strong>Term</strong></td><td style="padding:8px;">${installmentInfo?.termMonths ?? 'N/A'} months</td></tr>
+          </table>
+        `;
+        await sendInstallmentPaymentNoticeEmail(user.email, order.order_code || 'Order', installmentHtml);
+      }
+
       toast.success('Receipt sent to your email');
     } catch {
       toast.error('Failed to send receipt');
@@ -197,7 +249,7 @@ const Payment: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <Header />
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow p-8">
@@ -225,6 +277,10 @@ const Payment: React.FC = () => {
               <div className="flex justify-between">
                 <span>Vehicle</span>
                 <span>{order.product_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Order code</span>
+                <span>{order.order_code || 'N/A'}</span>
               </div>
               <div className="flex justify-between">
                 <span>Qty</span>
@@ -282,17 +338,17 @@ const Payment: React.FC = () => {
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">Complete {paymentModeLabel} Payment</h2>
               <p className="text-sm text-gray-600">
-                Please choose a payment gateway to finish your order. The current order flow is based on the selected {paymentModeLabel.toLowerCase()} option.
+                Choose a payment channel and submit a mock payment. The system will simulate success or failure so you can confirm the payment result.
               </p>
               <div className="space-y-2">
                 {paymentOptions.map((option) => (
-                  <label key={option.value} className="flex items-center">
+                  <label key={option.value} className="flex items-center gap-3 text-sm text-gray-700">
                     <input
                       type="radio"
                       value={option.value}
                       checked={paymentMethod === option.value}
                       onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="mr-2"
+                      className="h-4 w-4 text-blue-600"
                     />
                     {option.label}
                   </label>
@@ -307,22 +363,55 @@ const Payment: React.FC = () => {
                   </div>
                 ))}
               </div>
+              {paymentMethod && (
+                <div className="rounded-lg border border-gray-200 bg-slate-50 p-4 text-sm text-slate-800 dark:bg-slate-900 dark:text-slate-200">
+                  <div className="font-semibold mb-2">Mock payment flow</div>
+                  {paymentMethod === 'cash' && (
+                    <p>Cash payment is set to over-the-counter processing. You will receive instructions to pay at an authorized branch.</p>
+                  )}
+                  {paymentMethod === 'bank_transfer' && (
+                    <p>Bank payment simulates transfer processing. Use the provided bank account details to complete the transfer.</p>
+                  )}
+                  {paymentMethod === 'credit_card' && (
+                    <p>Installment payments simulate card authorization. Enter card details and complete the schedule if the mock transaction succeeds.</p>
+                  )}
+                </div>
+              )}
               <button
                 onClick={processPayment}
                 className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-                disabled={!paymentMethod || isPaymentSelectionDisabled}
+                disabled={!paymentMethod || isPaymentSelectionDisabled || paymentProcessing}
               >
-                Proceed to Payment
+                {paymentProcessing ? 'Processing payment...' : 'Proceed to Payment'}
               </button>
+              {transactionResult === 'failed' && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-4 text-red-700">
+                  The payment failed. Please retry or select a different payment method.
+                </div>
+              )}
             </div>
           )}
 
           {currentStep === 'verification' && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">Payment Verification</h2>
-              <p>Processing your payment...</p>
+              <p>Your payment has been authorized. Finalizing the transaction now.</p>
               <div className="text-center">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                {paymentDetails ? (
+                  <>
+                    <div className="font-semibold">Transaction summary</div>
+                    <div className="grid gap-2 pt-2">
+                      <div className="flex justify-between"><span>Method</span><span>{paymentDetails.method}</span></div>
+                      <div className="flex justify-between"><span>Amount</span><span>{formatCurrency(paymentDetails.amount)}</span></div>
+                      <div className="flex justify-between"><span>Timestamp</span><span>{new Date(paymentDetails.timestamp).toLocaleString()}</span></div>
+                    </div>
+                  </>
+                ) : (
+                  <p>Confirming the payment details.</p>
+                )}
               </div>
               <button
                 onClick={completePayment}

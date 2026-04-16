@@ -15,13 +15,13 @@ export default function About() {
     <div className="min-h-screen">
       <Header />
       <main>
-        <section className="py-16 bg-white">
+        <section className="py-16 bg-white dark:bg-slate-950">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              <h1 className="text-4xl md:text-5xl font-bold featured-heading mb-6">
                 About Ancar Motors Inc
               </h1>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              <p className="text-xl featured-heading max-w-3xl mx-auto">
                 We're more than just a car dealership. We're your trusted automotive partner, 
                 committed to providing exceptional vehicles and service to our community.
               </p>
@@ -36,19 +36,19 @@ export default function About() {
                 />
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center justify-center">
+                <h2 className="text-3xl font-bold featured-heading mb-6 flex items-center justify-center">
                   <span className="mr-3">Who Are We?</span>
                 </h2>
-                <p className="text-gray-600 mb-4 text-center">
+                <p className="featured-heading mb-4 text-center">
                   Our business is in marketing of imported and reconditioned Japanese trucks, 
                   special-purpose vehicles such as tractor head, tanker, dump and fire trucks, SUVs,
                    and heavy equipment. 
                 </p>
-                <p className="text-gray-600 mb-4 text-center">
+                <p className="featured-heading mb-4 text-center">
                   Our company carries Isuzu, Fuso, Mitsubishi, and Suzuki brands 
                   of reliable quality and performance in the Japanese and Philippine market.
                 </p>
-                <p className="text-gray-600 text-center">
+                <p className="featured-heading text-center">
                   Types of body include standard flat bed, low or high-dropside, palletized, and stake-body.
                    Our company can also provide the standard aluminum van to wing-van type and 
                    customized chiller and freezer vans and any customized body and/or unit preferred.
@@ -64,14 +64,14 @@ export default function About() {
                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <IconComponent className="h-8 w-8 text-blue-600" />
                     </div>
-                    <div className="text-3xl font-bold text-gray-900 mb-2">{stat.value}</div>
-                    <div className="text-gray-600">{stat.label}</div>
+                    <div className="text-3xl font-bold featured-heading mb-2">{stat.value}</div>
+                    <div className="featured-heading">{stat.label}</div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-8">
+            <div className="bg-white rounded-lg p-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Values</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="text-center">
@@ -106,7 +106,7 @@ export default function About() {
                 </div>
               </div>
             </div>
-            <div className="bg-gray-50 rounded-lg p-8 gap-8 mt-12">
+            <div className="bg-white rounded-lg p-8 gap-8 mt-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Mission</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="text-center">
@@ -138,7 +138,7 @@ export default function About() {
                 </div>
               </div>
             </div>
-             <div className="bg-gray-50 rounded-lg p-8 gap-8 mt-12">
+             <div className="bg-white rounded-lg p-8 gap-8 mt-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Vision</h2>
               <div className="text-center gap-8">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">

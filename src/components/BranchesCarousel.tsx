@@ -27,10 +27,10 @@ export default function BranchesCarousel() {
     <section className="py-16 bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold contact-heading mb-4">
             Visit Our Branches
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <p className="text-xl contact-heading max-w-3xl mx-auto">
             Find your nearest Ancar Motors location and experience our exceptional service firsthand.
           </p>
         </div>

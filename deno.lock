@@ -28,6 +28,7 @@
         "npm:globals@^16.4.0",
         "npm:lucide-react@0.462",
         "npm:netlify-cli@^24.11.1",
+        "npm:pg@^8.20.0",
         "npm:postcss@^8.4.49",
         "npm:react-dom@^19.1.1",
         "npm:react-hook-form@^7.53.0",

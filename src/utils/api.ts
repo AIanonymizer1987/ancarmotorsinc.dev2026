@@ -70,17 +70,96 @@ export const getUsers = async (): Promise<User[]> => {
 };
 
 export const getUser = async (email: string): Promise<User | null> => {
-  const response = await fetch(`${API_URL}/users?user_email=eq.${email}&select=*`, { headers });
+  const response = await fetch(`${API_URL}/users?user_email=eq.${encodeURIComponent(email)}&select=*`, { headers });
   if (!response.ok) throw new Error('Failed to fetch user');
   const data = await response.json();
   return data[0] || null;
 };
 
-export const getEmployee = async (email: string): Promise<any | null> => {
-  const response = await fetch(`${API_URL}/employees?email=eq.${email}&select=*`, { headers });
-  if (!response.ok) throw new Error('Failed to fetch employee');
+export const getUserById = async (id: number): Promise<User | null> => {
+  const response = await fetch(`${API_URL}/users?id=eq.${id}&select=*`, { headers });
+  if (!response.ok) throw new Error('Failed to fetch user');
   const data = await response.json();
   return data[0] || null;
+};
+
+export const requestEmailVerification = async (userId: number, code: string, requestedAt: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/users?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({
+      email_verification_code: code,
+      verification_requested_at: requestedAt,
+      user_email_verified: false,
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to request email verification');
+};
+
+export const verifyEmailCode = async (email: string, code: string): Promise<boolean> => {
+  const user = await getUser(email);
+  if (!user || user.email_verification_code !== code) return false;
+  await updateUser(user.id, {
+    user_email_verified: true,
+    email_verification_code: null,
+    verification_requested_at: null,
+  });
+  return true;
+};
+
+export const requestPasswordChangeVerification = async (userId: number, code: string, requestedAt: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/users?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({
+      password_verification_code: code,
+      verification_requested_at: requestedAt,
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to request password verification');
+};
+
+export const verifyPasswordChangeCode = async (userId: number, code: string): Promise<boolean> => {
+  const user = await getUserById(userId);
+  if (!user || user.password_verification_code !== code) return false;
+  await updateUser(user.id, { password_verification_code: null, verification_requested_at: null });
+  return true;
+};
+
+export const changePassword = async (userId: number, oldPassword: string, newPassword: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/users?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({
+      user_password: newPassword,
+      password_verification_code: null,
+    }),
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to change password: ${error}`);
+  }
+};
+
+export const changeEmail = async (userId: number, newEmail: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/users?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ user_email: newEmail, user_email_verified: false }),
+  });
+  if (!response.ok) throw new Error('Failed to change email');
+};
+
+export const updateProfilePicture = async (userId: number, pictureUrl: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/users?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ user_profile_picture: pictureUrl }),
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to update profile picture: ${error}`);
+  }
 };
 
 export const addUser = async (user: Omit<User, 'id'>): Promise<User> => {
@@ -255,36 +334,3 @@ export const deleteTicket = async (id: number): Promise<void> => {
   if (!response.ok) throw new Error('Failed to delete ticket');
 };
 
-// User Profile Updates
-export const changePassword = async (userId: number, oldPassword: string, newPassword: string): Promise<void> => {
-  const response = await fetch(`${API_URL}/public.users?id=eq.${userId}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify({
-      user_password: newPassword,
-      old_password: oldPassword, // for verification on backend
-    }),
-  });
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to change password: ${error}`);
-  }
-};
-
-export const changeEmail = async (userId: number, newEmail: string): Promise<void> => {
-  const response = await fetch(`${API_URL}/public.users?id=eq.${userId}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify({ user_email: newEmail }),
-  });
-  if (!response.ok) throw new Error('Failed to change email');
-};
-
-export const updateProfilePicture = async (userId: number, pictureUrl: string): Promise<void> => {
-  const response = await fetch(`${API_URL}/public.users?id=eq.${userId}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify({ user_profile_picture: pictureUrl }),
-  });
-  if (!response.ok) throw new Error('Failed to update profile picture');
-};

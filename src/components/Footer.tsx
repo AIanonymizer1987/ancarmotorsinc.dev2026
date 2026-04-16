@@ -1,9 +1,12 @@
 import React from 'react';
-import { Phone, Mail, MapPin, Facebook, Twitter, Instagram } from 'lucide-react';
+import { Phone, Mail, MapPin, Facebook, Twitter, Instagram, Moon, Sun } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 const Footer = () => {
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <footer className="bg-gray-900 text-white">
+    <footer className="bg-gray-900 dark:bg-slate-950 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
@@ -35,7 +38,7 @@ const Footer = () => {
             <ul className="space-y-2 text-center">
               <li><a href="/about" className="text-gray-300 hover:text-blue-400 transition-colors">About Us</a></li>
               <li><a href="/services" className="text-gray-300 hover:text-blue-400 transition-colors">Services</a></li>
-              <li><a href="/vehicles" className="text-gray-300 hover:text-blue-400 transition-colors">Vehicles</a></li>
+              <li><a href="/inventory" className="text-gray-300 hover:text-blue-400 transition-colors">Inventory</a></li>
               <li><a href="/contact" className="text-gray-300 hover:text-blue-400 transition-colors">Contact</a></li>
             </ul>
           </div>
@@ -61,13 +64,23 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center">
+        <div className="border-t border-gray-800 dark:border-slate-800 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-gray-400 text-sm">
             © 2026 Ancar Motors Inc. All rights reserved.
           </p>
-          <div className="flex space-x-6 mt-4 sm:mt-0">
-            <a href="#" className="text-gray-400 hover:text-blue-400 text-sm transition-colors">Privacy Policy</a>
-            <a href="#" className="text-gray-400 hover:text-blue-400 text-sm transition-colors">Terms of Service</a>
+          <div className="flex items-center gap-4 mt-4 sm:mt-0">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-gray-700 bg-slate-800 text-sm text-white hover:bg-slate-700 transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </button>
+            <div className="flex space-x-6">
+              <a href="#" className="text-gray-400 hover:text-blue-400 text-sm transition-colors">Privacy Policy</a>
+              <a href="#" className="text-gray-400 hover:text-blue-400 text-sm transition-colors">Terms of Service</a>
+            </div>
           </div>
         </div>
       </div>

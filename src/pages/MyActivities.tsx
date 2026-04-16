@@ -109,7 +109,7 @@ export default function MyActivities() {
 
   if (!user) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
         <Header />
         <main className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -126,7 +126,7 @@ export default function MyActivities() {
 
   if (loading) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
         <Header />
         <main className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -151,7 +151,7 @@ export default function MyActivities() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Header />
       <main className="py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -191,7 +191,7 @@ export default function MyActivities() {
                         <p className="text-2xl font-bold text-blue-600">₱{parseFloat(order.product_total_price.toString()).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' }).replace('₱', '')}</p>
                       </div>
                     </div>
-                    <div className="bg-gray-50 rounded p-4 mb-4">
+                    <div className="bg-white rounded p-4 mb-4">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <p className="text-gray-600">Model</p>
@@ -255,7 +255,7 @@ export default function MyActivities() {
                         <p className="text-sm text-gray-600">Vehicle ID: <span className="font-mono font-semibold">{td.vehicle_id}</span></p>
                       </div>
                     </div>
-                    <div className="bg-gray-50 rounded p-4 mb-4">
+                    <div className="bg-white rounded p-4 mb-4">
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div>
                           <p className="text-gray-600">Requested Date</p>
@@ -317,7 +317,7 @@ export default function MyActivities() {
                         <p className="text-sm text-gray-600">Date: {new Date(ticket.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
-                    <div className="bg-gray-50 rounded p-4 mb-4">
+                    <div className="bg-white rounded p-4 mb-4">
                       <p className="text-sm text-gray-700 mb-3"><strong>Your Message:</strong></p>
                       <p className="text-sm text-gray-600">{ticket.body}</p>
                     </div>

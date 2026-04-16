@@ -127,7 +127,7 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
   const processingFee = Math.round(subtotal * 0.02);
   const bankTransactionFee = Math.round(subtotal * 0.015);
   const cashTotal = subtotal + processingFee;
-  const bankTotal = subtotal + bankTransactionFee + processingFee;
+  const bankTotal = formData.payment === 'bank' ? subtotal + bankTransactionFee + processingFee : 0;
 
   const downPaymentAmount = Math.round(subtotal * (Number(formData.downPaymentPercent) / 100));
   const financedAmount = Math.max(subtotal - downPaymentAmount, 0);
@@ -198,6 +198,7 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
     setSubmitting(true);
     try {
       const order = {
+        order_code: `ORDER_${Date.now()}`,
         product_name: vehicle.vehicle_name,
         product_img_url: vehicle.vehicle_img_url,
         product_model: vehicle.vehicle_model,
@@ -212,23 +213,26 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
         product_payment: formData.payment,
         product_status: 'pending',
         product_payment_status: 'pending',
+        payment_reference: formData.payment === 'cash' ? null : `REF-${Date.now()}`,
         product_transaction: JSON.stringify({
           paymentDetails: {
             shippingCost,
             processingFee,
-            bankTransactionFee,
-            cashTotal,
-            bankTotal,
-            installment: {
-              downPaymentAmount,
-              financedAmount,
-              installmentPayment,
-              installmentTotal,
-              lateFee: estimatedLateFee,
-              termMonths: installmentMonths,
-              repaymentFrequency: formData.repaymentFrequency,
-              downPaymentPercent: formData.downPaymentPercent,
-            },
+            bankTransactionFee: formData.payment === 'bank' ? bankTransactionFee : 0,
+            cashTotal: cashTotal,
+            ...(formData.payment === 'bank' ? { bankTotal } : {}),
+            installment: formData.payment === 'installment'
+              ? {
+                  downPaymentAmount,
+                  financedAmount,
+                  installmentPayment,
+                  installmentTotal,
+                  lateFee: estimatedLateFee,
+                  termMonths: installmentMonths,
+                  repaymentFrequency: formData.repaymentFrequency,
+                  downPaymentPercent: formData.downPaymentPercent,
+                }
+              : null,
           },
         }),
         user_id: user.id.toString(),
@@ -249,6 +253,20 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
 
   if (loading) return <div>Loading vehicle details...</div>;
   if (!vehicle) return <div>No vehicle selected. Please select a vehicle from Vehicles.</div>;
+  if (!user) {
+    return (
+      <div className="max-w-4xl mx-auto text-center py-16">
+        <p className="text-xl font-semibold text-gray-900 mb-4">Please sign in to place an order.</p>
+        <p className="text-gray-600 mb-6">Ordering is restricted to registered customers. Please sign in or register to continue.</p>
+        <a
+          href="/login"
+          className="inline-flex items-center justify-center rounded-full bg-blue-600 px-6 py-3 text-white font-semibold hover:bg-blue-700"
+        >
+          Sign in to Order
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">

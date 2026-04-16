@@ -1,29 +1,53 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getUsers, addUser, getUser, getEmployee, updateUser as updateUserAPI } from '../utils/api';
+import { getUsers, addUser, updateUser as updateUserAPI } from '../utils/api';
 
 export type PublicUser = {
   id: number;
   name: string;
   email: string;
-  user_email: string;
+  user_email?: string;
   role: string;
   phone: string;
   address: string;
   user_profile_picture?: string;
+  emailVerified?: boolean;
 };
 
 type AuthContextValue = {
   user: PublicUser | null;
+  token: string | null;
   register: (name: string, email: string, password: string, phone: string, address: string) => Promise<PublicUser>;
   login: (email: string, password: string) => Promise<PublicUser>;
   logout: () => void;
   isAuthenticated: boolean;
   updateUser: (updates: Partial<PublicUser>) => Promise<void>;
+  refreshToken: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+};
+
+type AuthState = {
+  user: PublicUser | null;
+  token: string | null;
+  expiresAt: number | null;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const CURRENT_KEY = 'ancar_current_user_v1';
+const CURRENT_KEY = 'ancar_auth_state_v1';
+
+const loadAuthState = (): AuthState => {
+  if (typeof window === 'undefined') {
+    return { user: null, token: null, expiresAt: null };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CURRENT_KEY);
+    if (!raw) return { user: null, token: null, expiresAt: null };
+    return JSON.parse(raw) as AuthState;
+  } catch {
+    return { user: null, token: null, expiresAt: null };
+  }
+};
 
 // Ensure a seeded admin exists for admin dashboard access.
 async function ensureAdminSeeded() {
@@ -47,130 +71,185 @@ async function ensureAdminSeeded() {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<PublicUser | null>(() => {
-    try {
-      const raw = localStorage.getItem(CURRENT_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw) as PublicUser;
-    } catch {
-      return null;
-    }
-  });
+  const [authState, setAuthState] = useState<AuthState>(loadAuthState);
 
   useEffect(() => {
-    // keep localStorage in sync
-    if (user) {
-      localStorage.setItem(CURRENT_KEY, JSON.stringify(user));
+    if (authState.user && authState.token && authState.expiresAt) {
+      window.localStorage.setItem(CURRENT_KEY, JSON.stringify(authState));
     } else {
-      localStorage.removeItem(CURRENT_KEY);
+      window.localStorage.removeItem(CURRENT_KEY);
     }
-  }, [user]);
+  }, [authState]);
 
   useEffect(() => {
-    // seed admin account if missing (runs once)
     ensureAdminSeeded();
   }, []);
 
+  useEffect(() => {
+    if (!authState.token || !authState.expiresAt) return;
+
+    if (Date.now() >= authState.expiresAt) {
+      setAuthState({ user: null, token: null, expiresAt: null });
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setAuthState({ user: null, token: null, expiresAt: null });
+    }, authState.expiresAt - Date.now());
+
+    return () => window.clearTimeout(timeout);
+  }, [authState.token, authState.expiresAt]);
+
+  useEffect(() => {
+    const handleActivity = () => {
+      if (!authState.token || !authState.expiresAt) return;
+      const remaining = authState.expiresAt - Date.now();
+      if (remaining < 20 * 60 * 1000) {
+        refreshToken();
+      }
+    };
+
+    window.addEventListener('click', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('mousemove', handleActivity);
+
+    return () => {
+      window.removeEventListener('click', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('mousemove', handleActivity);
+    };
+  }, [authState.token, authState.expiresAt]);
+
+  const setAuthStateWithToken = (user: PublicUser, token: string, expiresAt: number) => {
+    setAuthState({ user, token, expiresAt });
+  };
+
+  const refreshToken = async () => {
+    if (!authState.token) return;
+    try {
+      const response = await fetch('/api/auth?action=refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authState.token}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok || !data.token || !data.expiresAt) {
+        setAuthState({ user: null, token: null, expiresAt: null });
+        return;
+      }
+      setAuthState((prev) => ({ ...prev, token: data.token, expiresAt: data.expiresAt }));
+    } catch {
+      setAuthState({ user: null, token: null, expiresAt: null });
+    }
+  };
+
+  const refreshUser = async () => {
+    if (!authState.user) return;
+    try {
+      const response = await fetch(`/api/neon/users?user_email=eq.${encodeURIComponent(authState.user.email)}&select=*`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const refreshed = data[0];
+      if (!refreshed) return;
+      setAuthState((prev) => ({
+        ...prev,
+        user: {
+          ...prev.user,
+          emailVerified: refreshed.user_email_verified || false,
+          user_profile_picture: refreshed.user_profile_picture || prev.user?.user_profile_picture,
+        },
+      }));
+    } catch {
+      // ignore refresh errors
+    }
+  };
+
   const register = async (name: string, email: string, password: string, phone: string, address: string) => {
-    const existingUser = await getUser(email);
-    const existingEmployee = await getEmployee(email);
+    const response = await fetch('/api/auth?action=register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, phone, address }),
+    });
 
-    if (existingEmployee) {
-      throw new Error('An account with that email already exists as an employee. Please use your employee credentials.');
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to register.');
     }
 
-    const userPayload = {
-      user_email: email,
-      user_password: password, // TODO: hash password
-      user_role: 'user',
-      user_phone_number: phone,
-      user_address: address,
-      user_name: name,
-    };
-
-    if (existingUser) {
-      await updateUserAPI(existingUser.id, userPayload);
+    if (!data.user || !data.token || !data.expiresAt) {
+      throw new Error('Registration returned invalid authentication data.');
     }
 
-    const publicUser: PublicUser = {
-      id: existingUser ? existingUser.id : (await addUser(userPayload)).id,
-      name: userPayload.user_name,
-      email: userPayload.user_email,
-      role: userPayload.user_role,
-      phone: userPayload.user_phone_number,
-      address: userPayload.user_address,
-    };
-
-    setUser(publicUser);
-    return publicUser;
+    setAuthStateWithToken(data.user, data.token, data.expiresAt);
+    return data.user as PublicUser;
   };
 
   const login = async (email: string, password: string) => {
-    const foundUser = await getUser(email);
-    let account: any = foundUser;
-    let isEmployee = false;
+    const response = await fetch('/api/auth?action=login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
 
-    if (!account) {
-      const employee = await getEmployee(email);
-      if (employee) {
-        account = employee;
-        isEmployee = true;
-      }
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Invalid email or password.');
     }
 
-    if (!account) {
-      throw new Error('Invalid email or password.');
+    if (!data.user || !data.token || !data.expiresAt) {
+      throw new Error('Login returned invalid authentication data.');
     }
 
-    const accountPassword = account.user_password || account.password;
-    if (accountPassword !== password) {
-      throw new Error('Invalid email or password.');
-    }
-
-    const publicUser: PublicUser = {
-      id: account.id,
-      name: account.user_name || account.employee_name || '',
-      email: account.user_email || account.email,
-      role: account.user_role || (account.admin_role ? 'admin' : isEmployee ? 'employee' : 'user'),
-      phone: account.user_phone_number || account.phone_number || '',
-      address: account.user_address || account.address || '',
-    };
-    setUser(publicUser);
-    return publicUser;
+    setAuthStateWithToken(data.user, data.token, data.expiresAt);
+    return data.user as PublicUser;
   };
 
   const logout = () => {
-    setUser(null);
+    setAuthState({ user: null, token: null, expiresAt: null });
   };
 
   const updateUser = async (updates: Partial<PublicUser>) => {
-    if (!user) throw new Error('No user logged in');
-    await updateUserAPI(user.id, {
+    if (!authState.user) throw new Error('No user logged in');
+    await updateUserAPI(authState.user.id, {
       user_name: updates.name,
       user_email: updates.email,
       user_phone_number: updates.phone,
       user_address: updates.address,
     });
-    setUser({ ...user, ...updates });
+    setAuthState((prev) => ({
+      ...prev,
+      user: prev.user ? { ...prev.user, ...updates } : null,
+    }));
   };
 
   const value: AuthContextValue = {
-    user,
+    user: authState.user,
+    token: authState.token,
     register,
     login,
     logout,
-    isAuthenticated: Boolean(user),
+    isAuthenticated:
+      Boolean(authState.user && authState.token && authState.expiresAt && authState.expiresAt > Date.now()),
     updateUser,
+    refreshToken,
+    refreshUser,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-    // eslint-disable-next-line react-refresh/only-export-components
-    export function useAuth(): AuthContextValue {
-      const ctx = useContext(AuthContext);
-      if (!ctx) {
-        throw new Error('useAuth must be used within an AuthProvider');
-      }
-      return ctx;
-    }
+export const useAuth = (): AuthContextValue => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};

@@ -25,6 +25,11 @@ export interface User {
   user_phone_number: string;
   user_address: string;
   user_name: string;
+  user_profile_picture?: string;
+  user_email_verified?: boolean;
+  email_verification_code?: string | null;
+  password_verification_code?: string | null;
+  verification_requested_at?: string | null;
 }
 
 export interface Order {
@@ -39,10 +44,12 @@ export interface Order {
   product_quantity: number;
   product_base_price: number;
   product_total_price: number;
+  order_code?: string;
   product_shipping_option: string;
   product_payment: string;
   product_status: string;
   product_payment_status: string;
+  payment_reference?: string;
   product_transaction: string;
   order_timestamp: string;
   user_id: string;

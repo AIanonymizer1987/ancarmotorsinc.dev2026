@@ -42,6 +42,24 @@ CREATE TABLE IF NOT EXISTS users (
   user_phone_number VARCHAR(20),
   user_address TEXT,
   user_name VARCHAR(255),
+  user_profile_picture TEXT,
+  user_email_verified BOOLEAN DEFAULT FALSE,
+  email_verification_code VARCHAR(12),
+  password_verification_code VARCHAR(12),
+  verification_requested_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create employees table for management roles and owner-level access
+CREATE TABLE IF NOT EXISTS employees (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  admin_role VARCHAR(50) DEFAULT 'bottom_management',
+  phone_number VARCHAR(20),
+  address TEXT,
+  employee_name VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -59,11 +77,13 @@ CREATE TABLE IF NOT EXISTS orders (
   product_quantity INTEGER NOT NULL,
   product_base_price DECIMAL(10,2) NOT NULL,
   product_total_price DECIMAL(10,2) NOT NULL,
+  order_code VARCHAR(20) UNIQUE,
   product_shipping_option VARCHAR(100),
   product_payment VARCHAR(100),
   product_status VARCHAR(50) DEFAULT 'pending',
   product_payment_status VARCHAR(50) DEFAULT 'pending',
-  product_transaction VARCHAR(255),
+  payment_reference VARCHAR(255),
+  product_transaction TEXT,
   order_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   user_id VARCHAR(255) NOT NULL,
   username VARCHAR(255)

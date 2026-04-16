@@ -13,8 +13,13 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Default light theme colors */
     --background: 0 0% 100%;
     --foreground: 265 4% 12.9%;
+    --text-base: 265 4% 12.9%;
+    --text-muted: 257 4.6% 55.4%;
+    --text-headings: 265 4% 12.9%;
+    --text-card: 265 4% 12.9%;
     --card: 0 0% 100%;
     --card-foreground: 265 4% 12.9%;
     --popover: 0 0% 100%;
@@ -61,9 +66,15 @@ All colors MUST be HSL.
     --spacing: 0.25rem;
   }
 
+  
   .dark {
+    /* Dark mode color variables. Change these for dark mode text styling. */
     --background: 0 0% 15%;
     --foreground: 248 0.3% 98.4%;
+    --text-base: 248 0.3% 98.4%;
+    --text-muted: 257 4% 70.4%;
+    --text-headings: 248 0.3% 98.4%;
+    --text-card: 215 15% 15%;
     --card: 266 4% 20.8%;
     --card-foreground: 248 0.3% 98.4%;
     --popover: 266 4% 20.8%;
@@ -103,6 +114,92 @@ All colors MUST be HSL.
     --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
   }
+
+  .dark body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  .dark body,
+  .dark .text-gray-900,
+  .dark .text-gray-800,
+  .dark .text-gray-700,
+  .dark .text-gray-600,
+  .dark .text-gray-500,
+  .dark .text-gray-400,
+  .dark .text-gray-300,
+  .dark .text-black,
+  .dark .text-slate-900,
+  .dark .text-slate-800,
+  .dark .text-slate-700,
+  .dark .text-slate-600,
+  .dark .text-slate-500 {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  /* Preserve white card surfaces in dark mode; page section backgrounds should use explicit dark variants. */
+
+  .dark .border-gray-100,
+  .dark .border-gray-200,
+  .dark .border-gray-300,
+  .dark .border-gray-400,
+  .dark .border-slate-100,
+  .dark .border-slate-200,
+  .dark .border-slate-300 {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  .dark .shadow-sm,
+  .dark .shadow,
+  .dark .shadow-md,
+  .dark .shadow-lg,
+  .dark .shadow-xl,
+  .dark .shadow-2xl {
+    box-shadow: 0 1px 2px rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .dark .bg-white,
+  .dark .bg-white .text-gray-900,
+  .dark .bg-white .text-gray-800,
+  .dark .bg-white .text-gray-700,
+  .dark .bg-white .text-gray-600,
+  .dark .bg-white .text-gray-500,
+  .dark .bg-white .text-gray-400,
+  .dark .bg-white .text-gray-300,
+  .dark .bg-white .text-black,
+  .dark .bg-white .text-slate-900,
+  .dark .bg-white .text-slate-800,
+  .dark .bg-white .text-slate-700,
+  .dark .bg-white .text-slate-600,
+  .dark .bg-white .text-slate-500 {
+    color: hsl(215 15% 15%) !important;
+  }
+
+.dark .name-link {
+  color: hsl(0 0% 100%) !important; /* Pure white */
+}
+.dark .dropdown-link {
+  color: hsl(0 0% 100%) !important; /* Pure white */
+}
+.dark .sign-out-link {
+  color: hsl(0 0% 100%) !important; /* Pure white */
+}
+.dark .sign-in-link { 
+  color: hsl(0 0% 100%) !important; }
+
+  .dark .nav-button-text {
+  color: hsl(0 0% 100%) !important; /* Pure white */
+}
+
+  .dark .contact-heading {
+  color: hsl(0, 0%, 17%) !important;
+}
+  .dark .featured-heading {
+  color: hsl(0 0% 100%) !important;
+}
+
+
+
 }
 
 @layer base {
@@ -112,6 +209,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    transition: var(--theme-transition);
   }
 
   html {

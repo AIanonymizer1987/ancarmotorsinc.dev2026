@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
-import { getVehicles, getUsers, getOrders, getTestDrives, getSuppliers, addVehicle, updateVehicle, deleteVehicle, updateOrder, addSupplier, updateSupplier, deleteSupplier, getTickets, updateTicket } from '../utils/api';
+import { getVehicles, getUsers, getOrders, getSuppliers, addVehicle, updateVehicle, deleteVehicle, updateOrder, addSupplier, updateSupplier, deleteSupplier, getTickets, updateTicket } from '../utils/api';
 import type { Vehicle, Order, User } from '../types';
 import { toast } from 'react-toastify';
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
@@ -259,6 +259,17 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleRequestRestock = (supplier: any) => {
+    toast.info(`Restock request sent to ${supplier.name}.`);
+  };
+
+  const handleEmailSupplier = (supplier: any) => {
+    const mailTo = `mailto:${supplier.email}?subject=Restock%20Request&body=Hello%20${encodeURIComponent(
+      supplier.contact_person || supplier.name
+    )},%0D%0A%0D%0AWe%20would%20like%20to%20request%20a%20stock%20replenishment.%20Please%20review%20our%20inventory%20levels.%0D%0A%0D%0AThanks.`;
+    window.location.href = mailTo;
+  };
+
   const stats = useMemo(() => {
     if (!isAdmin) return { totalVehicles: 0, totalOrders: 0, totalUsers: 0, totalRevenue: 0, pendingOrders: 0, completedOrders: 0 };
 
@@ -413,10 +424,12 @@ const Admin: React.FC = () => {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-2 text-left">Order ID</th>
+                        <th className="px-4 py-2 text-left">Order Code</th>
                         <th className="px-4 py-2 text-left">User</th>
                         <th className="px-4 py-2 text-left">Vehicle</th>
                         <th className="px-4 py-2 text-left">Total Price</th>
                         <th className="px-4 py-2 text-left">Status</th>
+                        <th className="px-4 py-2 text-left">Payment Ref</th>
                         <th className="px-4 py-2 text-left">Actions</th>
                       </tr>
                     </thead>
@@ -424,6 +437,7 @@ const Admin: React.FC = () => {
                       {orders.map(order => (
                         <tr key={order.order_id} className="border-t">
                           <td className="px-4 py-2">{order.order_id}</td>
+                          <td className="px-4 py-2">{order.order_code || '—'}</td>
                           <td className="px-4 py-2">{order.user_id}</td>
                           <td className="px-4 py-2">{order.product_name}</td>
                           <td className="px-4 py-2">${order.product_total_price?.toLocaleString()}</td>
@@ -439,6 +453,7 @@ const Admin: React.FC = () => {
                               <option value="cancelled">Cancelled</option>
                             </select>
                           </td>
+                          <td className="px-4 py-2">{order.payment_reference || '—'}</td>
                           <td className="px-4 py-2">
                             {/* Actions if needed */}
                           </td>
@@ -819,6 +834,18 @@ const Admin: React.FC = () => {
                           <td className="px-4 py-2">{supplier.contact_person}</td>
                           <td className="px-4 py-2">{supplier.email}</td>
                           <td className="px-4 py-2 space-x-2">
+                            <button
+                              onClick={() => handleRequestRestock(supplier)}
+                              className="text-indigo-600 hover:text-indigo-800"
+                            >
+                              Request Restock
+                            </button>
+                            <button
+                              onClick={() => handleEmailSupplier(supplier)}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              Email
+                            </button>
                             <button
                               onClick={() => handleDeleteSupplier(supplier.id)}
                               className="text-red-600 hover:text-red-800"
