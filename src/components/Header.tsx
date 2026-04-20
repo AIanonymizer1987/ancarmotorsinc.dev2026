@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -9,13 +9,14 @@ const Header = () => {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
 
   const navigation = [
     { name: 'Home', href: '/' },
     { name: 'About', href: '/about' },
     { name: 'Services', href: '/services' },
-    { name: 'Inventory', href: '/inventory' },
+    { name: 'Vehicles', href: '/vehicles' },
     { name: 'Contact', href: '/contact' }
   ];
 
@@ -97,13 +98,22 @@ const Header = () => {
                   {isUserDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-md shadow-lg py-1 z-10 border border-gray-200 dark:border-slate-700">
                       {isAdmin && (
-                        <Link
-                          to="/admin"
-                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800"
-                          onClick={() => setIsUserDropdownOpen(false)}
-                        >
-                          Admin Panel
-                        </Link>
+                        <>
+                          <Link
+                            to="/admin"
+                            className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800"
+                            onClick={() => setIsUserDropdownOpen(false)}
+                          >
+                            Admin Panel
+                          </Link>
+                          <Link
+                            to="/admin-account"
+                            className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800"
+                            onClick={() => setIsUserDropdownOpen(false)}
+                          >
+                            My Account
+                          </Link>
+                        </>
                       )}
                       {isOwner && (
                         <Link
@@ -202,17 +212,30 @@ const Header = () => {
                   <div className="px-3">
                     <div className="text-sm text-gray-900 dark:text-gray-200 mb-2">Signed in as <strong>{user.name}</strong></div>
                     {isAdmin && (
-                      <Link
-                        to="/admin"
-                        className={`block px-3 py-2 rounded-md text-base font-medium mb-2 transition-colors ${
-                          isActive('/admin')
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
-                            : 'text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-gray-50 dark:hover:bg-slate-800'
-                        }`}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        Admin Panel
-                      </Link>
+                      <>
+                        <Link
+                          to="/admin"
+                          className={`block px-3 py-2 rounded-md text-base font-medium mb-2 transition-colors ${
+                            isActive('/admin')
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
+                              : 'text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+                          }`}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Admin Panel
+                        </Link>
+                        <Link
+                          to="/admin-account"
+                          className={`block px-3 py-2 rounded-md text-base font-medium mb-2 transition-colors ${
+                            isActive('/admin-account')
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
+                              : 'text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+                          }`}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          My Account
+                        </Link>
+                      </>
                     )}
                     {isOwner && (
                       <Link
@@ -294,6 +317,7 @@ const Header = () => {
         onConfirm={() => {
           logout();
           setShowSignOutConfirm(false);
+          navigate('/');
         }}
         onCancel={() => setShowSignOutConfirm(false)}
       />

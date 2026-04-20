@@ -4,9 +4,8 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { getOrder, updateOrder } from '../utils/api';
-import { sendOrderReceiptEmail, sendInstallmentPaymentNoticeEmail } from '../utils/email';
+import { sendNotificationEmail, sendReceiptSummaryEmail } from '../utils/email';
 import { toast } from 'react-toastify';
-import * as emailjs from '@emailjs/browser';
 
 type Step = 'otp' | 'payment' | 'verification' | 'receipt';
 
@@ -28,14 +27,17 @@ const Payment: React.FC = () => {
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
 
   useEffect(() => {
-    if (!user || !orderId) {
-      navigate('/login');
+    const parsedOrderId = orderId ? Number(orderId) : NaN;
+
+    if (!user || !orderId || Number.isNaN(parsedOrderId) || parsedOrderId <= 0) {
+      toast.error('Invalid payment request');
+      navigate('/');
       return;
     }
 
     const fetchOrder = async () => {
       try {
-        const orderData = await getOrder(parseInt(orderId));
+        const orderData = await getOrder(parsedOrderId);
         if (!orderData) {
           throw new Error('Order not found');
         }
@@ -65,16 +67,14 @@ const Payment: React.FC = () => {
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       localStorage.setItem(`otp_${orderId}`, otpCode); // Mock storage
 
-      await emailjs.send(
-        import.meta.env.VITE_EMAILJS_SERVICE_ID,
-        import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-        {
-          to_email: user.email,
+      await sendNotificationEmail(user.email, 'Your payment OTP code', 'Payment verification OTP', 'Use the code below to verify your payment and complete your order.', {
+        detailsHtml: `<div style="font-size:16px; line-height:1.5;">Your payment OTP is:<br /><strong style="font-size:24px; color:#2563eb;">${otpCode}</strong></div>`,
+        footerText: 'If you did not request this, please ignore this email.',
+        extraParams: {
           otp: otpCode,
           order_id: orderId,
         },
-        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-      );
+      });
 
       setOtpSent(true);
       toast.success('OTP sent to your email');
@@ -184,10 +184,14 @@ const Payment: React.FC = () => {
   const transactionSummary = transactionData?.paymentDetails || {};
 
   const orderSummaryLines = [
-    { label: 'Subtotal', value: transactionSummary.subtotal ?? order?.product_total_price },
+    { label: 'Subtotal', value: transactionSummary.originalSubtotal ?? order?.product_total_price },
     { label: 'Shipping', value: transactionSummary.shippingCost ?? 0 },
     { label: 'Processing fee', value: transactionSummary.processingFee ?? 0 },
   ];
+
+  if (order?.discount_amount && order.discount_amount > 0) {
+    orderSummaryLines.push({ label: 'Discount', value: -Math.abs(order.discount_amount) });
+  }
 
   if (order?.product_payment === 'bank') {
     orderSummaryLines.push({ label: 'Bank transaction fee', value: transactionSummary.bankTransactionFee ?? 0 });
@@ -211,24 +215,58 @@ const Payment: React.FC = () => {
         <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Order code</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${order.order_code || 'N/A'}</td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Vehicle</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${order.product_name} (${order.product_model})</td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Payment type</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${paymentModeLabel}</td></tr>
+        ${order.voucher_code ? `<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Voucher used</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${order.voucher_code}</td></tr>` : ''}
+        ${order.discount_amount ? `<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Discount</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">-${formatCurrency(order.discount_amount)}</td></tr>` : ''}
         <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Amount due</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${formatCurrency(amountDue)}</td></tr>
       </table>
     `;
 
-    try {
-      await sendOrderReceiptEmail(user.email, order, detailsHtml);
+    let combinedDetailsHtml = detailsHtml;
 
-      if (order.product_payment === 'installment' && installmentInfo) {
-        const installmentHtml = `
+    if (order.product_payment === 'installment' && installmentInfo) {
+      combinedDetailsHtml += `
+        <div style="margin-top:20px;">
+          <h3 style="margin-bottom: 10px; color: #2563eb;">Installment Plan Details</h3>
           <table style="width:100%;font-size:14px;border-collapse:collapse;">
-            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Down payment</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${formatCurrency(installmentInfo.downPaymentAmount)} (${installmentInfo.downPaymentPercent}%)</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Financed amount</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${formatCurrency(installmentInfo.financedAmount)}</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Installment</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${formatCurrency(installmentInfo.installmentPayment)} / month</td></tr>
-            <tr><td style="padding:8px;"><strong>Term</strong></td><td style="padding:8px;">${installmentInfo?.termMonths ?? 'N/A'} months</td></tr>
+            <tr style="background-color:#f9fafb;">
+              <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Down payment</strong></td>
+              <td style="padding:8px;border:1px solid #e5e7eb;">${formatCurrency(installmentInfo.downPaymentAmount)} (${installmentInfo.downPaymentPercent}%)</td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Financed amount</strong></td>
+              <td style="padding:8px;border:1px solid #e5e7eb;">${formatCurrency(installmentInfo.financedAmount)}</td>
+            </tr>
+            <tr style="background-color:#f9fafb;">
+              <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Installment</strong></td>
+              <td style="padding:8px;border:1px solid #e5e7eb;">${formatCurrency(installmentInfo.installmentPayment)} / month</td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Term</strong></td>
+              <td style="padding:8px;border:1px solid #e5e7eb;">${installmentInfo?.termMonths ?? 'N/A'} months</td>
+            </tr>
           </table>
-        `;
-        await sendInstallmentPaymentNoticeEmail(user.email, order.order_code || 'Order', installmentHtml);
-      }
+        </div>
+      `;
+    }
+
+    const receiptSubject = order.product_payment === 'installment'
+      ? `Installment Payment Receipt - ${order.order_code || 'Order'}`
+      : `Payment Receipt - ${order.order_code || 'Order'}`;
+    const receiptHeadline = order.product_payment === 'installment'
+      ? 'Installment Payment Receipt'
+      : 'Payment Receipt';
+    const receiptBodyText = order.product_payment === 'installment'
+      ? 'Thank you for your installment payment. Please review the payment details and schedule below.'
+      : 'Thank you for your payment. Please review the details below.';
+
+    try {
+      await sendReceiptSummaryEmail(
+        user.email,
+        receiptSubject,
+        receiptHeadline,
+        receiptBodyText,
+        combinedDetailsHtml
+      );
 
       toast.success('Receipt sent to your email');
     } catch {

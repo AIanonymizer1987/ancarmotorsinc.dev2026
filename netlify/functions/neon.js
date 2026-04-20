@@ -1,21 +1,44 @@
 import { URLSearchParams } from 'url';
 import { Pool } from 'pg';
 
-const NEON_DATABASE_URL =
+const rawNeonDatabaseUrl =
   process.env.NETLIFY_NEON_DATABASE_URL ||
   process.env.NEON_DATABASE_URL ||
   process.env.DATABASE_URL ||
-  process.env.NETLIFY_DATABASE_URL;
-const NEON_API_URL = process.env.NETLIFY_NEON_API_URL || process.env.NEON_API_URL;
-const NEON_API_KEY = process.env.NETLIFY_NEON_API_KEY || process.env.NEON_API_KEY;
+  process.env.NETLIFY_DATABASE_URL ||
+  process.env.NETLIFY_DATABASE_URL_UNPOOLED;
+const rawNeonApiUrl = process.env.NETLIFY_NEON_API_URL || process.env.NEON_API_URL;
+const rawNeonApiKey = process.env.NETLIFY_NEON_API_KEY || process.env.NEON_API_KEY;
 
+const isPlaceholderValue = (value) => {
+  if (!value || typeof value !== 'string') return true;
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized.includes('your_') ||
+    normalized.includes('replace_') ||
+    normalized.includes('example') ||
+    normalized.includes('placeholder')
+  );
+};
+
+const NEON_DATABASE_URL = isPlaceholderValue(rawNeonDatabaseUrl) ? null : rawNeonDatabaseUrl;
+const NEON_API_URL = isPlaceholderValue(rawNeonApiUrl) ? null : rawNeonApiUrl;
+const NEON_API_KEY = isPlaceholderValue(rawNeonApiKey) ? null : rawNeonApiKey;
+
+let pool = null;
+let poolInitError = null;
 const directDbEnabled = Boolean(NEON_DATABASE_URL);
-const pool = directDbEnabled
-  ? new Pool({
+if (directDbEnabled) {
+  try {
+    pool = new Pool({
       connectionString: NEON_DATABASE_URL,
       ssl: { rejectUnauthorized: false },
-    })
-  : null;
+    });
+  } catch (error) {
+    poolInitError = error;
+    console.error('Failed to create Neon database pool:', error);
+  }
+}
 
 const isJwtToken = (token) => typeof token === 'string' && token.startsWith('eyJ');
 
@@ -141,11 +164,13 @@ const buildInsertQuery = (table, payload) => {
   const rows = Array.isArray(payload) ? payload : [payload];
   if (!rows.length) throw new Error('Missing insert payload.');
 
-  const columns = sanitizeColumnNames(Object.keys(rows[0] || {}));
+  const columns = sanitizeColumnNames(Object.keys(rows[0] || {})).filter(
+    (column) => rows[0][column] !== undefined
+  );
   if (!columns.length) throw new Error('No valid insert columns provided.');
 
   const values = [];
-  const valueGroups = rows.map((row, rowIndex) => {
+  const valueGroups = rows.map((row) => {
     const group = columns.map((column) => {
       values.push(row[column]);
       return `$${values.length}`;
@@ -190,7 +215,7 @@ const handleDirectDbRequest = async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         error:
-          'Missing database connection. Set NETLIFY_NEON_DATABASE_URL, NEON_DATABASE_URL, or DATABASE_URL in your Netlify environment.',
+          'Missing database connection. Set NETLIFY_NEON_DATABASE_URL, NEON_DATABASE_URL, DATABASE_URL, NETLIFY_DATABASE_URL, or NETLIFY_DATABASE_URL_UNPOOLED in your Netlify environment.',
       }),
     };
   }
@@ -199,7 +224,10 @@ const handleDirectDbRequest = async (event) => {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Database pool failed to initialize.' }),
+      body: JSON.stringify({
+        error: 'Database pool failed to initialize.',
+        detail: poolInitError?.message || 'Check your database connection settings.',
+      }),
     };
   }
 
@@ -228,7 +256,11 @@ const handleDirectDbRequest = async (event) => {
 
     if (event.httpMethod === 'POST') {
       const payload = parseJsonBody(event);
+      console.log('INSERT into table:', table);
+      console.log('INSERT payload:', JSON.stringify(payload));
       const { sql, values } = buildInsertQuery(table, payload);
+      console.log('INSERT SQL:', sql);
+      console.log('INSERT values:', values);
       const result = await pool.query(sql, values);
       return {
         statusCode: 201,

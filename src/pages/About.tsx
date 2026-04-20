@@ -1,14 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { Users, Award, Clock, Heart, Shield, Wrench, Leaf, Trophy, Eye } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function About() {
+  const [expandedValues, setExpandedValues] = useState([false, false, false]);
+  const [expandedMission, setExpandedMission] = useState([false, false, false]);
+  const [expandedVision, setExpandedVision] = useState(false);
+
   const stats = [
     { icon: Users, label: 'Happy Customers', value: '1000+' },
     { icon: Award, label: 'Years of Experience', value: '15+' },
     { icon: Clock, label: 'Vehicles Sold', value: '5000+' },
     { icon: Heart, label: 'Customer Satisfaction', value: '98%' }
+  ];
+
+  const values = [
+    { icon: Shield, title: 'Integrity', text: 'We believe in honest, transparent dealings with every customer, building trust through our actions.' },
+    { icon: Award, title: 'Quality', text: 'Every vehicle in our inventory is carefully inspected to ensure it meets our high standards.' },
+    { icon: Wrench, title: 'Service', text: 'Our commitment to exceptional customer service doesn\'t end when you drive off the lot.' }
+  ];
+
+  const mission = [
+    { icon: Heart, title: 'Support', text: 'Continuously help improve the welfare of our people towards growth within the company.' },
+    { icon: Leaf, title: 'Sustainability', text: 'Adhere to the environmental standards and meet the expectations of the clients and stakeholders.' },
+    { icon: Trophy, title: 'World Class', text: 'Assure high quality and reliable products.' }
   ];
 
   return (
@@ -74,79 +91,105 @@ export default function About() {
             <div className="bg-white rounded-lg p-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Values</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Shield className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">Integrity</h3>
-                  <p className="text-gray-600">
-                    We believe in honest, transparent dealings with every customer, 
-                    building trust through our actions.
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Award className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">Quality</h3>
-                  <p className="text-gray-600">
-                    Every vehicle in our inventory is carefully inspected to ensure 
-                    it meets our high standards.
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Wrench className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">Service</h3>
-                  <p className="text-gray-600">
-                    Our commitment to exceptional customer service doesn't end 
-                    when you drive off the lot.
-                  </p>
-                </div>
+                {values.map((item, index) => {
+                  const IconComponent = item.icon;
+                  const isExpanded = expandedValues[index];
+                  return (
+                    <div key={index} className="text-center">
+                      <motion.div
+                        className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 cursor-pointer"
+                        onClick={() => {
+                          const newExpanded = [...expandedValues];
+                          newExpanded[index] = !newExpanded[index];
+                          setExpandedValues(newExpanded);
+                        }}
+                        animate={{ scale: isExpanded ? 0.8 : 1 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <IconComponent className={`text-blue-600 ${isExpanded ? 'h-8 w-8' : 'h-12 w-12'}`} />
+                      </motion.div>
+                      <h3 className="text-2xl font-semibold text-gray-900 mb-3">{item.title}</h3>
+                      {isExpanded && (
+                        <motion.p
+                          className="text-gray-600"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          {item.text}
+                        </motion.p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <div className="bg-white rounded-lg p-8 gap-8 mt-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Mission</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Heart className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">Support</h3>
-                  <p className="text-gray-600">
-                    Continuously help imporve the welfare of our people towards growth within the company.
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Leaf className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">Sustainability</h3>
-                  <p className="text-gray-600">
-                    Adhere to the environmental standards and meet the expectations of the clients and stakeholders.
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Trophy className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">World Class</h3>
-                  <p className="text-gray-600">
-                    Assure high quality and reliable products.
-                  </p>
-                </div>
+                {mission.map((item, index) => {
+                  const IconComponent = item.icon;
+                  const isExpanded = expandedMission[index];
+                  return (
+                    <div key={index} className="text-center">
+                      <motion.div
+                        className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 cursor-pointer"
+                        onClick={() => {
+                          const newExpanded = [...expandedMission];
+                          newExpanded[index] = !newExpanded[index];
+                          setExpandedMission(newExpanded);
+                        }}
+                        animate={{ scale: isExpanded ? 0.8 : 1 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <IconComponent className={`text-blue-600 ${isExpanded ? 'h-8 w-8' : 'h-12 w-12'}`} />
+                      </motion.div>
+                      <h3 className="text-2xl font-semibold text-gray-900 mb-3">{item.title}</h3>
+                      {isExpanded && (
+                        <motion.p
+                          className="text-gray-600"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          {item.text}
+                        </motion.p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
              <div className="bg-white rounded-lg p-8 gap-8 mt-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Vision</h2>
               <div className="text-center gap-8">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Eye className="h-8 w-8 text-blue-600" />
-                </div>
-                <p className="text-gray-600">
-                  To be the leading Filipino-owned truck and heavy equipment importer, distributor and assembler in the Philippine market.
-                </p>
+                <motion.div
+                  className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 cursor-pointer"
+                  onClick={() => setExpandedVision(!expandedVision)}
+                  animate={{ scale: expandedVision ? 0.8 : 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Eye className={`text-blue-600 ${expandedVision ? 'h-8 w-8' : 'h-12 w-12'}`} />
+                </motion.div>
+                <h3 className="text-2xl font-semibold text-gray-900 mb-3">Vision</h3>
+                {expandedVision && (
+                  <motion.p
+                    className="text-gray-600 mb-6"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    To be the leading Filipino-owned truck and heavy equipment importer, distributor and assembler in the Philippine market.
+                  </motion.p>
+                )}
+                <video
+                  src="https://res.cloudinary.com/dy3vb87qz/video/upload/v1776599052/IntroAncarmotors.35582d14a9e6f5d93416-C1eUnS3s_r3crty.mp4"
+                  controls
+                  className="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-20"
+                />
               </div>
             </div>
           </div>

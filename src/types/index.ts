@@ -30,6 +30,11 @@ export interface User {
   email_verification_code?: string | null;
   password_verification_code?: string | null;
   verification_requested_at?: string | null;
+  id_photo_url?: string;
+  id_verification_status?: string;
+  id_verification_requested_at?: string | null;
+  voucher_balance?: number;
+  voucher_codes?: string;
 }
 
 export interface Order {
@@ -44,6 +49,8 @@ export interface Order {
   product_quantity: number;
   product_base_price: number;
   product_total_price: number;
+  discount_amount?: number;
+  voucher_code?: string;
   order_code?: string;
   product_shipping_option: string;
   product_payment: string;

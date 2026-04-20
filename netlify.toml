@@ -24,3 +24,15 @@
   to = "/.netlify/functions/auth"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/api/db-admin/*"
+  to = "/.netlify/functions/db-admin/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/db-admin"
+  to = "/.netlify/functions/db-admin"
+  status = 200
+  force = true

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import type { Vehicle } from '../types';
-import { getVehicle, addOrder, updateVehicle } from '../utils/api';
+import { getVehicle, addOrder, updateVehicle, getUserById, updateUser } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
@@ -73,6 +73,8 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
     downPaymentPercent: '10',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [userData, setUserData] = useState<{ voucher_balance?: number; voucher_codes?: string } | null>(null);
+  const [useVoucherBalance, setUseVoucherBalance] = useState(false);
 
   useEffect(() => {
     const loadVehicle = async () => {
@@ -103,6 +105,22 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
     loadVehicle();
   }, [vehicleId]);
 
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!user) return;
+      try {
+        const fullUser = await getUserById(user.id);
+        setUserData({
+          voucher_balance: fullUser?.voucher_balance,
+          voucher_codes: fullUser?.voucher_codes,
+        });
+      } catch {
+        // ignore missing voucher data
+      }
+    };
+    loadUserData();
+  }, [user]);
+
   const vehicleColors = vehicle ? parseOptions(vehicle.vehicle_color) : [];
   const payloadOptions = vehicle ? parseOptions(vehicle.vehicle_payload_capacity) : [];
   const liftingOptions = vehicle ? parseOptions(vehicle.vehicle_lifting_capacity) : [];
@@ -124,13 +142,17 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
   };
 
   const subtotal = calculatePrice();
-  const processingFee = Math.round(subtotal * 0.02);
-  const bankTransactionFee = Math.round(subtotal * 0.015);
-  const cashTotal = subtotal + processingFee;
-  const bankTotal = formData.payment === 'bank' ? subtotal + bankTransactionFee + processingFee : 0;
+  const voucherBalance = Math.max(Number(userData?.voucher_balance || 0), 0);
+  const discountAmount = useVoucherBalance ? Math.min(voucherBalance, subtotal) : 0;
+  const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
 
-  const downPaymentAmount = Math.round(subtotal * (Number(formData.downPaymentPercent) / 100));
-  const financedAmount = Math.max(subtotal - downPaymentAmount, 0);
+  const processingFee = Math.round(discountedSubtotal * 0.02);
+  const bankTransactionFee = Math.round(discountedSubtotal * 0.015);
+  const cashTotal = discountedSubtotal + processingFee;
+  const bankTotal = formData.payment === 'bank' ? discountedSubtotal + bankTransactionFee + processingFee : 0;
+
+  const downPaymentAmount = Math.round(discountedSubtotal * (Number(formData.downPaymentPercent) / 100));
+  const financedAmount = Math.max(discountedSubtotal - downPaymentAmount, 0);
   const installmentMonths = Number(formData.installmentTerm);
   const periodsPerYear = formData.repaymentFrequency === 'quarterly' ? 4 : 12;
   const numberOfPayments =
@@ -208,7 +230,9 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
         product_transmission: formData.transmission,
         product_quantity: formData.quantity,
         product_base_price: vehicle.vehicle_base_price,
-        product_total_price: subtotal,
+        product_total_price: discountedSubtotal,
+        discount_amount: discountAmount,
+        voucher_code: useVoucherBalance ? 'CLAIMED_VOUCHERS' : undefined,
         product_shipping_option: formData.shipping_option,
         product_payment: formData.payment,
         product_status: 'pending',
@@ -216,6 +240,9 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
         payment_reference: formData.payment === 'cash' ? null : `REF-${Date.now()}`,
         product_transaction: JSON.stringify({
           paymentDetails: {
+            subtotal: discountedSubtotal,
+            originalSubtotal: subtotal,
+            discountAmount,
             shippingCost,
             processingFee,
             bankTransactionFee: formData.payment === 'bank' ? bankTransactionFee : 0,
@@ -241,6 +268,11 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
 
       const createdOrder = await addOrder(order);
       await updateVehicle(vehicle.vehicle_id, { stock_quantity: (vehicle.stock_quantity || 0) - formData.quantity });
+      if (discountAmount > 0) {
+        await updateUser(user.id, {
+          voucher_balance: Math.max(voucherBalance - discountAmount, 0),
+        });
+      }
       toast.success('Order placed successfully! Redirecting to payment...');
       onSuccess?.();
       navigate(`/payment?order=${createdOrder.order_id}`);
@@ -427,6 +459,29 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
             </select>
           </div>
 
+          {voucherBalance > 0 && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-green-800">Use voucher balance</p>
+                  <p className="text-sm text-gray-700">Available: ₱{voucherBalance.toLocaleString()}</p>
+                </div>
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={useVoucherBalance}
+                    onChange={(e) => setUseVoucherBalance(e.target.checked)}
+                    className="h-4 w-4 text-green-600 border-gray-300 rounded"
+                  />
+                  Apply balance
+                </label>
+              </div>
+              {useVoucherBalance && (
+                <p className="mt-3 text-sm text-gray-700">A discount of ₱{discountAmount.toLocaleString()} will be applied to this order.</p>
+              )}
+            </div>
+          )}
+
           {formData.payment === 'installment' && (
             <div className="bg-gray-50 p-4 rounded-md space-y-4">
               <h4 className="font-semibold">Installment Application</h4>
@@ -507,6 +562,12 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
                 <span>Subtotal</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm text-green-700">
+                  <span>Voucher discount</span>
+                  <span>-{formatCurrency(discountAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Processing Fee</span>
                 <span>{formatCurrency(processingFee)}</span>
@@ -518,6 +579,10 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Bank Total</span>
                 <span>{formatCurrency(bankTotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-semibold text-blue-900 border-t border-gray-200 pt-2">
+                <span>Total after discounts</span>
+                <span>{formatCurrency(discountedSubtotal + processingFee + (formData.payment === 'bank' ? bankTransactionFee : 0))}</span>
               </div>
               {formData.payment === 'installment' && (
                 <>

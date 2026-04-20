@@ -2,18 +2,39 @@ import { Pool } from 'pg';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
-const NEON_DATABASE_URL =
+const rawNeonDatabaseUrl =
   process.env.NETLIFY_NEON_DATABASE_URL ||
   process.env.NEON_DATABASE_URL ||
   process.env.DATABASE_URL ||
-  process.env.NETLIFY_DATABASE_URL;
+  process.env.NETLIFY_DATABASE_URL ||
+  process.env.NETLIFY_DATABASE_URL_UNPOOLED;
 
-const JWT_SECRET = process.env.AUTH_JWT_SECRET || 'replace_this_secret_in_production';
+const isPlaceholderValue = (value) => {
+  if (!value || typeof value !== 'string') return true;
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized.includes('your_') ||
+    normalized.includes('replace_') ||
+    normalized.includes('example') ||
+    normalized.includes('placeholder')
+  );
+};
+
+const NEON_DATABASE_URL = isPlaceholderValue(rawNeonDatabaseUrl) ? null : rawNeonDatabaseUrl;
+
+const JWT_SECRET = process.env.AUTH_JWT_SECRET || process.env.NETLIFY_SECURE_JWT_SECRET || 'replace_this_secret_in_production';
 const TOKEN_EXPIRY_SECONDS = 60 * 60; // 1 hour
 
-const pool = NEON_DATABASE_URL
-  ? new Pool({ connectionString: NEON_DATABASE_URL, ssl: { rejectUnauthorized: false } })
-  : null;
+let pool = null;
+let poolInitError = null;
+try {
+  if (NEON_DATABASE_URL) {
+    pool = new Pool({ connectionString: NEON_DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  }
+} catch (error) {
+  poolInitError = error;
+  console.error('Failed to create database pool:', error);
+}
 
 const hashPassword = (password) =>
   crypto.createHash('sha256').update(password, 'utf8').digest('hex');
@@ -73,6 +94,18 @@ const handler = async (event) => {
   try {
     if (!event.httpMethod) {
       return sendJson(400, { error: 'Missing HTTP method.' });
+    }
+
+    // Debug logging
+    if (!pool) {
+      const detail = poolInitError ? poolInitError.message : 'No database pool available.';
+      console.error('Database pool not initialized. NEON_DATABASE_URL:', NEON_DATABASE_URL ? 'SET' : 'NOT SET', 'poolInitError:', detail);
+      return sendJson(500, {
+        error: 'Database connection not configured.',
+        detail:
+          detail ||
+          'Ensure NETLIFY_NEON_DATABASE_URL, NEON_DATABASE_URL, DATABASE_URL, NETLIFY_DATABASE_URL, or NETLIFY_DATABASE_URL_UNPOOLED is set for auth.',
+      });
     }
 
     const action = event.queryStringParameters?.action || '';
@@ -151,6 +184,7 @@ const handler = async (event) => {
 
     return sendJson(404, { error: 'Action not found.' });
   } catch (error) {
+    console.error('Auth handler error:', error);
     return sendJson(500, { error: 'Auth service failed.', detail: error.message });
   }
 };

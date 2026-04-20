@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X, Clock, CheckCircle, AlertCircle, MessageSquare } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -39,6 +39,10 @@ export default function MyActivities() {
   const [testDrives, setTestDrives] = useState<TestDrive[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
+  const [orderPage, setOrderPage] = useState(1);
+  const itemsPerPage = 3;
   const { confirmState, openConfirm, closeConfirm, handleConfirm } = useConfirmDialog();
 
   useEffect(() => {
@@ -71,6 +75,7 @@ export default function MyActivities() {
           setOrders(orders.map(o =>
             o.order_id === order.order_id ? { ...o, product_status: 'cancelled' } : o
           ));
+          setOrderPage(1); // Reset to first page after update
           toast.success('Order cancelled successfully.');
         } catch {
           toast.error('Failed to cancel order.');
@@ -150,6 +155,30 @@ export default function MyActivities() {
     return 'bg-yellow-100 text-yellow-800';
   };
 
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const search = orderSearch.toLowerCase();
+      const matchesSearch =
+        order.order_id.toString().includes(search) ||
+        (order.order_code || '').toLowerCase().includes(search) ||
+        order.product_name.toLowerCase().includes(search) ||
+        order.product_model.toLowerCase().includes(search) ||
+        order.user_id.toLowerCase().includes(search);
+
+      const matchesStatus =
+        orderStatusFilter === 'all' || order.product_status === orderStatusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [orders, orderSearch, orderStatusFilter]);
+
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const visibleOrders = filteredOrders.slice((orderPage - 1) * itemsPerPage, orderPage * itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setOrderPage(page);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Header />
@@ -172,55 +201,137 @@ export default function MyActivities() {
                 </a>
               </div>
             ) : (
-              <div className="grid gap-4">
-                {orders.map((order) => (
-                  <div key={order.order_id} className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{order.product_name}</h3>
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeColor(order.product_status)}`}>
-                            {getStatusIcon(order.product_status)}
-                            {order.product_status.charAt(0).toUpperCase() + order.product_status.slice(1)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600">Order ID: <span className="font-mono font-semibold">{order.order_id}</span></p>
-                        <p className="text-sm text-gray-600">Date: {new Date(order.order_timestamp).toLocaleDateString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-blue-600">₱{parseFloat(order.product_total_price.toString()).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' }).replace('₱', '')}</p>
-                      </div>
-                    </div>
-                    <div className="bg-white rounded p-4 mb-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-600">Model</p>
-                          <p className="font-semibold text-gray-900">{order.product_model}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Color</p>
-                          <p className="font-semibold text-gray-900">{order.product_color}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Quantity</p>
-                          <p className="font-semibold text-gray-900">{order.product_quantity}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Status Details</p>
-                          <p className="font-semibold text-gray-900">{order.product_status}</p>
-                        </div>
-                      </div>
-                    </div>
-                    {order.product_status !== 'completed' && order.product_status !== 'cancelled' && (
-                      <button
-                        onClick={() => handleCancelOrder(order)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition text-sm font-medium"
-                      >
-                        Cancel Order
-                      </button>
-                    )}
+              <div>
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={orderSearch}
+                      onChange={(e) => {
+                        setOrderSearch(e.target.value);
+                        setOrderPage(1);
+                      }}
+                      placeholder="Search orders by ID, code, vehicle, or user"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+                    />
                   </div>
-                ))}
+                  <div className="w-full md:w-64">
+                    <select
+                      value={orderStatusFilter}
+                      onChange={(e) => {
+                        setOrderStatusFilter(e.target.value);
+                        setOrderPage(1);
+                      }}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="all">All statuses</option>
+                      <option value="pending">Pending</option>
+                      <option value="processing">Processing</option>
+                      <option value="approved">Approved</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+                </div>
+                {visibleOrders.length === 0 ? (
+                  <div className="bg-white shadow rounded-lg p-6 text-center">
+                    <p className="text-gray-600">No orders match your search or filter.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {visibleOrders.map((order) => (
+                      <div key={order.order_id} className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition">
+                        <div className="flex items-start gap-4 mb-4">
+                          <img
+                            src={order.product_img_url}
+                            alt={order.product_name}
+                            className="w-24 h-24 object-cover rounded-lg"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-semibold text-gray-900">{order.product_name}</h3>
+                              <span className={
+                                'inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ' +
+                                getStatusBadgeColor(order.product_status)
+                              }>
+                                {getStatusIcon(order.product_status)}
+                                {order.product_status.charAt(0).toUpperCase() + order.product_status.slice(1)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">Order ID: <span className="font-mono font-semibold">{order.order_id}</span></p>
+                            <p className="text-sm text-gray-600">Date: {new Date(order.order_timestamp).toLocaleDateString()}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-blue-600">₱{parseFloat(order.product_total_price.toString()).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' }).replace('₱', '')}</p>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded p-4 mb-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <p className="text-gray-600">Model</p>
+                              <p className="font-semibold text-gray-900">{order.product_model}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Color</p>
+                              <p className="font-semibold text-gray-900">{order.product_color}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Quantity</p>
+                              <p className="font-semibold text-gray-900">{order.product_quantity}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Status Details</p>
+                              <p className="font-semibold text-gray-900">{order.product_status}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {order.product_status !== 'completed' && order.product_status !== 'cancelled' && (
+                          <button
+                            onClick={() => handleCancelOrder(order)}
+                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition text-sm font-medium"
+                          >
+                            Cancel Order
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-6">
+                    <button
+                      onClick={() => handlePageChange(orderPage - 1)}
+                      disabled={orderPage === 1}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`px-3 py-2 rounded-md ${
+                          orderPage === page
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => handlePageChange(orderPage + 1)}
+                      disabled={orderPage === totalPages}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

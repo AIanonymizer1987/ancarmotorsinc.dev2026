@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import OrderVehicleForm from '../components/OrderVehicleForm';
 import TestDriveForm from '../components/TestDriveForm';
+import { useAuth } from '../context/AuthContext';
 
 type ServiceType = 'order' | 'test-drive';
 
@@ -11,6 +12,7 @@ export default function Services() {
   const [activeService, setActiveService] = useState<ServiceType>('order');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const vehicleId = searchParams.get('vehicle');
   const hasVehicle = !!vehicleId;
 
@@ -54,7 +56,25 @@ export default function Services() {
               {activeService === 'order' ? (
                 <OrderVehicleForm />
               ) : (
-                <TestDriveForm />
+                <div className="relative">
+                  <TestDriveForm />
+                  {!user && (
+                    <div className="absolute inset-0 z-10 rounded-lg bg-white/90 backdrop-blur-sm flex items-center justify-center p-6">
+                      <div className="text-center">
+                        <h2 className="text-2xl font-semibold text-gray-900 mb-3">Browse Only</h2>
+                        <p className="text-gray-600 mb-4">
+                          You must sign in before scheduling a test drive.
+                        </p>
+                        <button
+                          onClick={() => navigate('/login')}
+                          className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        >
+                          Sign In to Continue
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             

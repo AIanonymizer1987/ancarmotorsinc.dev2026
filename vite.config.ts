@@ -1,9 +1,18 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+
+  return {
+    plugins: [react()],
+    define: {
+      'process.env.EMAILJS_SERVICE_ID': JSON.stringify(env.EMAILJS_SERVICE_ID || env.VITE_EMAILJS_SERVICE_ID || ''),
+      'process.env.EMAILJS_PUBLIC_KEY': JSON.stringify(env.EMAILJS_PUBLIC_KEY || env.VITE_EMAILJS_PUBLIC_KEY || ''),
+      'process.env.EMAILJS_TEMPLATE_NOTIFICATION': JSON.stringify(env.EMAILJS_TEMPLATE_NOTIFICATION || env.VITE_EMAILJS_NOTIFICATION_TEMPLATE_ID || ''),
+      'process.env.EMAILJS_TEMPLATE_RECEIPT': JSON.stringify(env.EMAILJS_TEMPLATE_RECEIPT || env.VITE_EMAILJS_RECEIPT_TEMPLATE_ID || ''),
+    },
+    server: {
     proxy: {
       '/api/neon': {
         target: 'http://127.0.0.1:8888',
@@ -44,4 +53,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });

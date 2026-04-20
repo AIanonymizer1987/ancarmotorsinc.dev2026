@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import '@radix-ui/themes/styles.css';
 import { Theme } from '@radix-ui/themes';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 
 import Home from './src/pages/Home';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { AuthProvider } from './src/context/AuthContext';
 import About from './src/pages/About';
 import Services from './src/pages/Services';
 import Vehicles from './src/pages/Vehicles';
@@ -22,9 +23,29 @@ import Terms from './src/pages/Terms';
 import Payment from './src/pages/Payment';
 import Owner from './src/pages/Owner';
 import Employee from './src/pages/Employee';
-import { AuthProvider } from './src/context/AuthContext';
 import Admin from './src/pages/Admin';
+import AdminAccount from './src/pages/AdminAccount';
 import VerifyEmail from './src/pages/VerifyEmail';
+
+declare global {
+  interface Window {
+    dataLayer?: any[];
+  }
+}
+
+function AnalyticsTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      event: 'page_view',
+      page_path: location.pathname + location.search,
+    });
+  }, [location]);
+
+  return null;
+}
 
 const App: React.FC = () => {
   return (
@@ -32,6 +53,7 @@ const App: React.FC = () => {
       <Theme appearance="inherit" radius="large" scaling="100%">
         <AuthProvider>
           <Router>
+          <AnalyticsTracker />
             <main className="min-h-screen font-sans">
               <Routes>
               <Route path="/" element={<Home />} />
@@ -53,6 +75,7 @@ const App: React.FC = () => {
               <Route path="/policies" element={<Policies />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/admin-account" element={<AdminAccount />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

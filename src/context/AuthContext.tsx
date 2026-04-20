@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { getUsers, addUser, updateUser as updateUserAPI } from '../utils/api';
 
 export type PublicUser = {
@@ -11,6 +11,11 @@ export type PublicUser = {
   address: string;
   user_profile_picture?: string;
   emailVerified?: boolean;
+  id_photo_url?: string;
+  id_verification_status?: string;
+  id_verification_requested_at?: string | null;
+  voucher_balance?: number;
+  voucher_codes?: string;
 };
 
 type AuthContextValue = {
@@ -49,27 +54,6 @@ const loadAuthState = (): AuthState => {
   }
 };
 
-// Ensure a seeded admin exists for admin dashboard access.
-async function ensureAdminSeeded() {
-  try {
-    const users = await getUsers();
-    const adminEmail = 'admin@ancarmotors.com';
-    const exists = users.find((u) => u.user_email.toLowerCase() === adminEmail);
-    if (!exists) {
-      await addUser({
-        user_email: adminEmail,
-        user_password: 'adminpass', // hashed later
-        user_role: 'admin',
-        user_phone_number: '',
-        user_address: '',
-        user_name: 'Admin',
-      });
-    }
-  } catch {
-    console.error('Failed to seed admin');
-  }
-}
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>(loadAuthState);
 
@@ -80,10 +64,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.localStorage.removeItem(CURRENT_KEY);
     }
   }, [authState]);
-
-  useEffect(() => {
-    ensureAdminSeeded();
-  }, []);
 
   useEffect(() => {
     if (!authState.token || !authState.expiresAt) return;
@@ -134,7 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           Authorization: `Bearer ${authState.token}`,
         },
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.token || !data.expiresAt) {
         setAuthState({ user: null, token: null, expiresAt: null });
         return;
@@ -145,28 +125,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const refreshUser = async () => {
-    if (!authState.user) return;
+  const refreshUser = useCallback(async () => {
+    const userEmail = authState.user?.email;
+    if (!userEmail) return;
     try {
-      const response = await fetch(`/api/neon/users?user_email=eq.${encodeURIComponent(authState.user.email)}&select=*`, {
+      const response = await fetch(`/api/neon/users?user_email=eq.${encodeURIComponent(userEmail)}&select=*`, {
         headers: { 'Content-Type': 'application/json' },
       });
       if (!response.ok) return;
       const data = await response.json();
       const refreshed = data[0];
       if (!refreshed) return;
-      setAuthState((prev) => ({
-        ...prev,
-        user: {
-          ...prev.user,
-          emailVerified: refreshed.user_email_verified || false,
-          user_profile_picture: refreshed.user_profile_picture || prev.user?.user_profile_picture,
-        },
-      }));
+      setAuthState((prev) => {
+        if (!prev.user) return prev;
+        return {
+          ...prev,
+          user: {
+            ...prev.user,
+            emailVerified: refreshed.user_email_verified || false,
+            user_profile_picture: refreshed.user_profile_picture || prev.user.user_profile_picture,
+            id_photo_url: refreshed.id_photo_url || prev.user.id_photo_url,
+            id_verification_status: refreshed.id_verification_status || prev.user.id_verification_status,
+            id_verification_requested_at:
+              refreshed.id_verification_requested_at || prev.user.id_verification_requested_at,
+            voucher_balance: Number(refreshed.voucher_balance || 0),
+            voucher_codes: refreshed.voucher_codes || prev.user.voucher_codes,
+          },
+        };
+      });
     } catch {
       // ignore refresh errors
     }
-  };
+  }, [authState.user?.email]);
 
   const register = async (name: string, email: string, password: string, phone: string, address: string) => {
     const response = await fetch('/api/auth?action=register', {
@@ -175,9 +165,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ name, email, password, phone, address }),
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || 'Failed to register.');
+      throw new Error(data.error || data.detail || 'Failed to register.');
     }
 
     if (!data.user || !data.token || !data.expiresAt) {
@@ -195,9 +185,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || 'Invalid email or password.');
+      throw new Error(data.error || data.detail || `Login failed (${response.status})`);
     }
 
     if (!data.user || !data.token || !data.expiresAt) {

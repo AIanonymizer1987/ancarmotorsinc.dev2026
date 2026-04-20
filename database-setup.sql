@@ -47,6 +47,11 @@ CREATE TABLE IF NOT EXISTS users (
   email_verification_code VARCHAR(12),
   password_verification_code VARCHAR(12),
   verification_requested_at TIMESTAMP WITH TIME ZONE,
+  id_photo_url TEXT,
+  id_verification_status VARCHAR(50) DEFAULT 'not_requested',
+  id_verification_requested_at TIMESTAMP WITH TIME ZONE,
+  voucher_balance DECIMAL(10,2) DEFAULT 0,
+  voucher_codes TEXT DEFAULT '',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -77,6 +82,8 @@ CREATE TABLE IF NOT EXISTS orders (
   product_quantity INTEGER NOT NULL,
   product_base_price DECIMAL(10,2) NOT NULL,
   product_total_price DECIMAL(10,2) NOT NULL,
+  discount_amount DECIMAL(10,2) DEFAULT 0,
+  voucher_code VARCHAR(50),
   order_code VARCHAR(20) UNIQUE,
   product_shipping_option VARCHAR(100),
   product_payment VARCHAR(100),

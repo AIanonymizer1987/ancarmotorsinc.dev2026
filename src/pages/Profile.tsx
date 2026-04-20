@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
-import { Upload, Lock, Mail } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Upload, Lock, Mail, ShieldCheck, Ticket } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
-import { changeEmail, changePassword, requestEmailVerification, requestPasswordChangeVerification, updateProfilePicture, verifyPasswordChangeCode } from '../utils/api';
+import { changeEmail, changePassword, requestEmailVerification, requestPasswordChangeVerification, requestIdVerification, claimVoucher, updateProfilePicture, verifyPasswordChangeCode } from '../utils/api';
 import { sendPasswordChangeVerificationEmail, generateVerificationCode, sendVerificationEmail } from '../utils/email';
 import { toast } from 'react-toastify';
 
 export default function Profile() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshUser } = useAuth();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'email' | 'picture'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'email' | 'picture' | 'discounts' | 'identity'>('profile');
   
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -31,11 +33,25 @@ export default function Profile() {
     confirmEmail: '',
   });
   
-  const [pictureUrl, setPictureUrl] = useState('');
+  const [pictureUrl, setPictureUrl] = useState(user?.user_profile_picture || '');
   const [verificationMethod, setVerificationMethod] = useState<'code' | 'link'>('code');
   const [submitting, setSubmitting] = useState(false);
   const [passwordChangeStep, setPasswordChangeStep] = useState<'form' | 'verify'>('form');
   const [verificationSending, setVerificationSending] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [voucherClaiming, setVoucherClaiming] = useState(false);
+  const [idRequestLoading, setIdRequestLoading] = useState(false);
+
+  const availableVouchers = [
+    { code: 'WELCOME1000', amount: 1000, title: 'Welcome Voucher', description: 'A new account bonus you can apply to your first order.' },
+    { code: 'LOYALTY500', amount: 500, title: 'Loyalty Discount', description: 'A repeat customer discount for your next purchase.' },
+    { code: 'PHFLEET2000', amount: 2000, title: 'Fleet Savings', description: 'A larger voucher for big vehicle purchases.' },
+  ];
+
+  React.useEffect(() => {
+    if (!user?.email) return;
+    refreshUser();
+  }, [user?.email, refreshUser]);
 
   if (!user) {
     return (
@@ -82,17 +98,87 @@ export default function Profile() {
     const requestedAt = new Date().toISOString();
     setVerificationSending(true);
 
+    console.log('[Profile.handleSendVerification] Starting email verification', {
+      userId: user.id,
+      userEmail: user.email,
+      code,
+      requestedAt,
+      verificationMethod,
+    });
+
     try {
       await requestEmailVerification(user.id, code, requestedAt);
+      console.log('[Profile.handleSendVerification] Backend verification request stored');
+
       const verificationLink = verificationMethod === 'link'
         ? `${window.location.origin}/verify-email?code=${code}&email=${encodeURIComponent(user.email)}`
         : undefined;
+
+      console.log('[Profile.handleSendVerification] About to send verification email', {
+        toEmail: user.email,
+        code,
+        method: verificationMethod,
+        verificationLink,
+      });
+
       await sendVerificationEmail(user.email, code, verificationMethod, verificationLink);
+      console.log('[Profile.handleSendVerification] Email sent successfully');
       toast.success('Verification message sent. Check your inbox.');
+      setVerificationSent(true);
     } catch (error: any) {
+      console.error('[Profile.handleSendVerification] Error:', {
+        message: error?.message,
+        error,
+      });
       toast.error(error?.message || 'Failed to send verification email.');
+      setVerificationSent(false);
     } finally {
       setVerificationSending(false);
+    }
+  };
+
+  const handleClaimVoucher = async (code: string, amount: number) => {
+    setVoucherClaiming(true);
+    try {
+      await claimVoucher(user.id, code, amount);
+      await refreshUser();
+      toast.success(`Voucher ${code} claimed! ₱${amount.toLocaleString()} added to your balance.`);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to claim voucher');
+    } finally {
+      setVoucherClaiming(false);
+    }
+  };
+
+  const handleIdVerificationUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIdRequestLoading(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+      formDataUpload.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: 'POST',
+          body: formDataUpload,
+        }
+      );
+
+      if (!response.ok) throw new Error('Upload failed');
+      const data = await response.json();
+      const imageUrl = data.secure_url;
+
+      await requestIdVerification(user.id, imageUrl, new Date().toISOString());
+      await refreshUser();
+      toast.success('Identity verification request submitted. Admin will review your ID.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to upload ID for verification');
+    } finally {
+      setIdRequestLoading(false);
     }
   };
 
@@ -199,11 +285,26 @@ export default function Profile() {
       const imageUrl = data.secure_url;
 
       await updateProfilePicture(user.id, imageUrl);
+      await refreshUser();
       toast.success('Profile picture updated successfully');
       setPictureUrl(imageUrl);
       setActiveTab('profile');
     } catch (error: any) {
       toast.error(error?.message || 'Failed to upload profile picture');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRemovePicture = async () => {
+    setSubmitting(true);
+    try {
+      await updateProfilePicture(user.id, '');
+      await refreshUser();
+      setPictureUrl('');
+      toast.success('Profile picture removed successfully');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to remove profile picture');
     } finally {
       setSubmitting(false);
     }
@@ -257,6 +358,26 @@ export default function Profile() {
               }`}
             >
               <Mail size={18} /> Email
+            </button>
+            <button
+              onClick={() => setActiveTab('discounts')}
+              className={`px-4 py-2 font-medium flex items-center gap-2 ${
+                activeTab === 'discounts'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Ticket size={18} /> Discounts
+            </button>
+            <button
+              onClick={() => setActiveTab('identity')}
+              className={`px-4 py-2 font-medium flex items-center gap-2 ${
+                activeTab === 'identity'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <ShieldCheck size={18} /> Verification
             </button>
           </div>
 
@@ -317,7 +438,10 @@ export default function Profile() {
                                     name="profileVerificationMethod"
                                     value="link"
                                     checked={verificationMethod === 'link'}
-                                    onChange={() => setVerificationMethod('link')}
+                                    onChange={() => {
+                                      setVerificationMethod('link');
+                                      setVerificationSent(false);
+                                    }}
                                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                                   />
                                   Link
@@ -331,6 +455,19 @@ export default function Profile() {
                               className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition"
                             >
                               {verificationSending ? 'Sending...' : 'Send verification'}
+                            </button>
+                            {verificationSent && !verificationSending && (
+                              <p className="mt-3 text-sm text-green-700">Verification message sent. Please check your email.</p>
+                            )}
+                            <div className="mt-3 text-sm text-gray-600">
+                              If you chose code verification, open the verification page to enter the code.
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/verify-email?email=${encodeURIComponent(user.email)}`)}
+                              className="mt-3 w-full py-2 px-4 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 transition"
+                            >
+                              Verify received code
                             </button>
                           </div>
                         </>
@@ -398,24 +535,47 @@ export default function Profile() {
           {activeTab === 'picture' && (
             <div className="bg-white shadow rounded-lg p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-6">Profile Picture</h2>
-              <div className="flex flex-col items-center gap-6">
-                <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-col items-center justify-center bg-gray-100 rounded-full h-64 w-64 mx-auto overflow-hidden">
                   {pictureUrl ? (
                     <img src={pictureUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
                   ) : (
-                    <Upload size={48} className="text-gray-400" />
+                    <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-200 text-gray-500">
+                      No picture
+                    </div>
                   )}
                 </div>
-                <div className="w-full">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload New Picture</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePictureUpload}
-                    disabled={submitting}
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">Supported formats: JPG, PNG, GIF (Max 5MB)</p>
+                <div className="space-y-4">
+                  <p className="text-gray-600">This is your current profile picture. You can replace it or remove it entirely.</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Upload New Picture</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePictureUpload}
+                      disabled={submitting}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">Supported formats: JPG, PNG, GIF (Max 5MB)</p>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={handleRemovePicture}
+                      disabled={!pictureUrl || submitting}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                    >
+                      Remove Picture
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('profile')}
+                      disabled={submitting}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      Back to Profile
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -541,6 +701,86 @@ export default function Profile() {
                   {submitting ? 'Updating...' : 'Update Email'}
                 </button>
               </form>
+            </div>
+          )}
+
+          {activeTab === 'discounts' && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Discounts & Vouchers</h2>
+              <div className="grid gap-4 mb-6">
+                <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                  <p className="text-sm font-medium text-green-800">Voucher balance</p>
+                  <p className="text-3xl font-bold text-green-900">₱{Number(user.voucher_balance || 0).toLocaleString()}</p>
+                  <p className="text-sm text-gray-600 mt-2">Claim vouchers here and apply the balance when you place an order.</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-4">
+                  <p className="text-sm font-medium text-gray-700 mb-3">Claimable vouchers</p>
+                  <div className="space-y-3">
+                    {availableVouchers.map((voucher) => {
+                      const claimed = (user.voucher_codes || '')
+                        .split(',')
+                        .map((code) => code.trim())
+                        .filter(Boolean)
+                        .includes(voucher.code);
+
+                      return (
+                        <div key={voucher.code} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border border-gray-200 rounded-lg p-4">
+                          <div>
+                            <p className="text-base font-semibold text-gray-900">{voucher.title}</p>
+                            <p className="text-sm text-gray-600">Code: <span className="font-medium">{voucher.code}</span></p>
+                            <p className="text-sm text-gray-600 mt-1">{voucher.description}</p>
+                            <p className="text-sm text-gray-700 mt-1">Amount: ₱{voucher.amount.toLocaleString()}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleClaimVoucher(voucher.code, voucher.amount)}
+                            disabled={claimed || voucherClaiming}
+                            className={`px-4 py-2 rounded-md text-sm font-medium ${claimed ? 'bg-gray-200 text-gray-700 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'} transition`}
+                          >
+                            {claimed ? 'Claimed' : 'Claim voucher'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <p className="text-sm text-gray-700">When a voucher is claimed, the voucher amount is added to your account balance. During checkout you can apply your voucher balance to reduce your order total.</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'identity' && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Identity Verification</h2>
+              <div className="grid gap-4 mb-6">
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <p className="text-sm font-medium text-blue-800">Current status</p>
+                  <p className="text-lg font-semibold text-blue-900 mt-2">{user.id_verification_status || 'Not requested'}</p>
+                  <p className="text-sm text-gray-600 mt-2">Upload a valid Philippine government-issued ID and our admin team will review it.</p>
+                </div>
+                {user.id_photo_url && (
+                  <div className="rounded-lg border border-gray-200 bg-white p-4">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Uploaded ID preview</p>
+                    <img src={user.id_photo_url} alt="Uploaded ID" className="w-full max-w-xs rounded-md border" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-gray-700">Upload ID photo</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleIdVerificationUpload}
+                  disabled={idRequestLoading}
+                  className="w-full"
+                />
+                <p className="text-sm text-gray-500">Use a clear photo of a valid Philippine government-issued ID. The admin can approve or deny your verification request.</p>
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
+                  After upload, your request will be sent to the admin. If the request is approved, your identity status will be updated here.
+                </div>
+              </div>
             </div>
           )}
         </div>

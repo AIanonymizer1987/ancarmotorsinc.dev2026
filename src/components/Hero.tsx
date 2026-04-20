@@ -41,7 +41,7 @@ const Hero = () => {
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <button className="border-2 border-white text-white hover:bg-white hover:text-blue-900 px-8 py-4 rounded-lg font-semibold text-lg transition-colors">
-              Schedule Service
+              Schedule Test Drive 
             </button>
           </div>
         </div>
