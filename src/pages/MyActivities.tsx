@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Clock, CheckCircle, AlertCircle, MessageSquare } from 'lucide-react';
+import { X, Clock, CheckCircle, MessageSquare } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -42,7 +42,9 @@ export default function MyActivities() {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [orderPage, setOrderPage] = useState(1);
-  const itemsPerPage = 3;
+  const [testDrivePage, setTestDrivePage] = useState(1);
+  const [ticketPage, setTicketPage] = useState(1);
+  const itemsPerPage = 5;
   const { confirmState, openConfirm, closeConfirm, handleConfirm } = useConfirmDialog();
 
   useEffect(() => {
@@ -112,6 +114,57 @@ export default function MyActivities() {
     );
   };
 
+  const getStatusIcon = (status: string) => {
+    if (status === 'completed' || status === 'approved') return <CheckCircle className="text-green-600" size={20} />;
+    if (status === 'cancelled' || status === 'rejected') return <X className="text-red-600" size={20} />;
+    return <Clock className="text-yellow-600" size={20} />;
+  };
+
+  const getStatusBadgeColor = (status: string) => {
+    if (status === 'completed' || status === 'approved') return 'bg-green-100 text-green-800';
+    if (status === 'cancelled' || status === 'rejected') return 'bg-red-100 text-red-800';
+    if (status === 'out_for_delivery') return 'bg-blue-100 text-blue-800';
+    return 'bg-yellow-100 text-yellow-800';
+  };
+
+  const filteredOrders = useMemo(() => {
+    const filtered = orders.filter((order) => {
+      const search = orderSearch.toLowerCase();
+      const matchesSearch =
+        order.order_id.toString().includes(search) ||
+        (order.order_code || '').toLowerCase().includes(search) ||
+        order.product_name.toLowerCase().includes(search) ||
+        order.product_model.toLowerCase().includes(search) ||
+        order.user_id.toLowerCase().includes(search);
+
+      const matchesStatus =
+        orderStatusFilter === 'all' || order.product_status === orderStatusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+
+    return [...filtered].sort((a, b) => {
+      const timeA = a.order_timestamp ? new Date(a.order_timestamp).getTime() : 0;
+      const timeB = b.order_timestamp ? new Date(b.order_timestamp).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [orders, orderSearch, orderStatusFilter]);
+
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const visibleOrders = filteredOrders.slice((orderPage - 1) * itemsPerPage, orderPage * itemsPerPage);
+
+  const testDriveTotalPages = Math.ceil(testDrives.length / itemsPerPage);
+  const visibleTestDrives = testDrives.slice((testDrivePage - 1) * itemsPerPage, testDrivePage * itemsPerPage);
+
+  const ticketTotalPages = Math.ceil(tickets.length / itemsPerPage);
+  const visibleTickets = tickets.slice((ticketPage - 1) * itemsPerPage, ticketPage * itemsPerPage);
+
+  const handlePageChange = (page: number, type: 'order' | 'testDrive' | 'ticket') => {
+    if (type === 'order') setOrderPage(page);
+    else if (type === 'testDrive') setTestDrivePage(page);
+    else if (type === 'ticket') setTicketPage(page);
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -142,42 +195,6 @@ export default function MyActivities() {
       </div>
     );
   }
-
-  const getStatusIcon = (status: string) => {
-    if (status === 'completed' || status === 'approved') return <CheckCircle className="text-green-600" size={20} />;
-    if (status === 'cancelled' || status === 'rejected') return <X className="text-red-600" size={20} />;
-    return <Clock className="text-yellow-600" size={20} />;
-  };
-
-  const getStatusBadgeColor = (status: string) => {
-    if (status === 'completed' || status === 'approved') return 'bg-green-100 text-green-800';
-    if (status === 'cancelled' || status === 'rejected') return 'bg-red-100 text-red-800';
-    return 'bg-yellow-100 text-yellow-800';
-  };
-
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      const search = orderSearch.toLowerCase();
-      const matchesSearch =
-        order.order_id.toString().includes(search) ||
-        (order.order_code || '').toLowerCase().includes(search) ||
-        order.product_name.toLowerCase().includes(search) ||
-        order.product_model.toLowerCase().includes(search) ||
-        order.user_id.toLowerCase().includes(search);
-
-      const matchesStatus =
-        orderStatusFilter === 'all' || order.product_status === orderStatusFilter;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [orders, orderSearch, orderStatusFilter]);
-
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
-  const visibleOrders = filteredOrders.slice((orderPage - 1) * itemsPerPage, orderPage * itemsPerPage);
-
-  const handlePageChange = (page: number) => {
-    setOrderPage(page);
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -256,11 +273,14 @@ export default function MyActivities() {
                                 getStatusBadgeColor(order.product_status)
                               }>
                                 {getStatusIcon(order.product_status)}
-                                {order.product_status.charAt(0).toUpperCase() + order.product_status.slice(1)}
+                                {order.product_status
+                                  .replace(/_/g, ' ')
+                                  .replace(/\b\w/g, (char) => char.toUpperCase())}
                               </span>
                             </div>
                             <p className="text-sm text-gray-600">Order ID: <span className="font-mono font-semibold">{order.order_id}</span></p>
                             <p className="text-sm text-gray-600">Date: {new Date(order.order_timestamp).toLocaleDateString()}</p>
+                            <p className="text-sm text-gray-600">Delivery: {order.delivery_address || 'Not available'}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-blue-600">₱{parseFloat(order.product_total_price.toString()).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' }).replace('₱', '')}</p>
@@ -282,9 +302,25 @@ export default function MyActivities() {
                               <p className="font-semibold text-gray-900">{order.product_quantity}</p>
                             </div>
                             <div>
-                              <p className="text-gray-600">Status Details</p>
+                              <p className="text-gray-600">Order Status</p>
                               <p className="font-semibold text-gray-900">{order.product_status}</p>
                             </div>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4">
+                            <div>
+                              <p className="text-gray-600">Payment Status</p>
+                              <p className="font-semibold text-gray-900">{order.product_payment_status}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Payment Method</p>
+                              <p className="font-semibold text-gray-900">{order.product_payment}</p>
+                            </div>
+                            {order.payment_reference && (
+                              <div>
+                                <p className="text-gray-600">Payment Reference</p>
+                                <p className="font-semibold text-gray-900 font-mono text-xs">{order.payment_reference}</p>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -303,6 +339,13 @@ export default function MyActivities() {
 
                 {totalPages > 1 && (
                   <div className="flex justify-center items-center gap-2 mt-6">
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={orderPage === 1}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      First
+                    </button>
                     <button
                       onClick={() => handlePageChange(orderPage - 1)}
                       disabled={orderPage === 1}
@@ -330,6 +373,13 @@ export default function MyActivities() {
                     >
                       Next
                     </button>
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={orderPage === totalPages}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Last
+                    </button>
                   </div>
                 )}
               </div>
@@ -351,47 +401,95 @@ export default function MyActivities() {
                 </a>
               </div>
             ) : (
-              <div className="grid gap-4">
-                {testDrives.map((td) => (
-                  <div key={td.id} className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">Test Drive Request #{td.id}</h3>
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeColor(td.status)}`}>
-                            {getStatusIcon(td.status)}
-                            {td.status.charAt(0).toUpperCase() + td.status.slice(1)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600">Vehicle ID: <span className="font-mono font-semibold">{td.vehicle_id}</span></p>
-                      </div>
-                    </div>
-                    <div className="bg-white rounded p-4 mb-4">
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-600">Requested Date</p>
-                          <p className="font-semibold text-gray-900">{new Date(td.requested_date).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Requested Time</p>
-                          <p className="font-semibold text-gray-900">{td.requested_time}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Status</p>
-                          <p className="font-semibold text-gray-900 capitalize">{td.status}</p>
+              <div>
+                <div className="grid gap-4">
+                  {visibleTestDrives.map((td) => (
+                    <div key={td.id} className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">Test Drive Request #{td.id}</h3>
+                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeColor(td.status)}`}>
+                              {getStatusIcon(td.status)}
+                              {td.status.charAt(0).toUpperCase() + td.status.slice(1)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600">Vehicle ID: <span className="font-mono font-semibold">{td.vehicle_id}</span></p>
                         </div>
                       </div>
+                      <div className="bg-white rounded p-4 mb-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className="text-gray-600">Requested Date</p>
+                            <p className="font-semibold text-gray-900">{new Date(td.requested_date).toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Requested Time</p>
+                            <p className="font-semibold text-gray-900">{td.requested_time}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Status</p>
+                            <p className="font-semibold text-gray-900 capitalize">{td.status}</p>
+                          </div>
+                        </div>
+                      </div>
+                      {td.status !== 'completed' && td.status !== 'cancelled' && td.status !== 'rejected' && (
+                        <button
+                          onClick={() => handleCancelTestDrive(td)}
+                          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition text-sm font-medium"
+                        >
+                          Cancel Test Drive
+                        </button>
+                      )}
                     </div>
-                    {td.status !== 'completed' && td.status !== 'cancelled' && td.status !== 'rejected' && (
+                  ))}
+                </div>
+
+                {testDriveTotalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-6">
+                    <button
+                      onClick={() => handlePageChange(1, 'testDrive')}
+                      disabled={testDrivePage === 1}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      First
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(testDrivePage - 1, 'testDrive')}
+                      disabled={testDrivePage === 1}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: testDriveTotalPages }, (_, i) => i + 1).map((page) => (
                       <button
-                        onClick={() => handleCancelTestDrive(td)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition text-sm font-medium"
+                        key={page}
+                        onClick={() => handlePageChange(page, 'testDrive')}
+                        className={`px-3 py-2 rounded-md ${
+                          testDrivePage === page
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
                       >
-                        Cancel Test Drive
+                        {page}
                       </button>
-                    )}
+                    ))}
+                    <button
+                      onClick={() => handlePageChange(testDrivePage + 1, 'testDrive')}
+                      disabled={testDrivePage === testDriveTotalPages}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(testDriveTotalPages, 'testDrive')}
+                      disabled={testDrivePage === testDriveTotalPages}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Last
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
@@ -411,45 +509,93 @@ export default function MyActivities() {
                 </a>
               </div>
             ) : (
-              <div className="grid gap-4">
-                {tickets.map((ticket) => (
-                  <div key={ticket.id} className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{ticket.title}</h3>
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeColor(ticket.status)}`}>
-                            {getStatusIcon(ticket.status)}
-                            {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600">Ticket ID: <span className="font-mono font-semibold text-blue-600">#{ticket.ticket_id}</span></p>
-                        <p className="text-sm text-gray-600">Category: <span className="font-semibold capitalize">{ticket.nature_of_concern}</span></p>
-                        <p className="text-sm text-gray-600">Date: {new Date(ticket.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="bg-white rounded p-4 mb-4">
-                      <p className="text-sm text-gray-700 mb-3"><strong>Your Message:</strong></p>
-                      <p className="text-sm text-gray-600">{ticket.body}</p>
-                    </div>
-                    {ticket.responses && JSON.parse(ticket.responses).length > 0 && (
-                      <div className="bg-blue-50 rounded p-4 border border-blue-200">
-                        <div className="flex items-center gap-2 mb-3">
-                          <MessageSquare className="text-blue-600" size={18} />
-                          <p className="text-sm font-semibold text-blue-900">Admin Response</p>
-                        </div>
-                        <div className="space-y-2">
-                          {JSON.parse(ticket.responses).map((response: any, idx: number) => (
-                            <div key={idx} className="text-sm text-gray-700 pl-6 border-l-2 border-blue-300">
-                              <p className="text-xs text-gray-500 mb-1">{new Date(response.timestamp).toLocaleString()}</p>
-                              <p>{response.message}</p>
-                            </div>
-                          ))}
+              <div>
+                <div className="grid gap-4">
+                  {visibleTickets.map((ticket) => (
+                    <div key={ticket.id} className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">{ticket.title}</h3>
+                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeColor(ticket.status)}`}>
+                              {getStatusIcon(ticket.status)}
+                              {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600">Ticket ID: <span className="font-mono font-semibold text-blue-600">#{ticket.ticket_id}</span></p>
+                          <p className="text-sm text-gray-600">Category: <span className="font-semibold capitalize">{ticket.nature_of_concern}</span></p>
+                          <p className="text-sm text-gray-600">Date: {new Date(ticket.created_at).toLocaleDateString()}</p>
                         </div>
                       </div>
-                    )}
+                      <div className="bg-white rounded p-4 mb-4">
+                        <p className="text-sm text-gray-700 mb-3"><strong>Your Message:</strong></p>
+                        <p className="text-sm text-gray-600">{ticket.body}</p>
+                      </div>
+                      {ticket.responses && JSON.parse(ticket.responses).length > 0 && (
+                        <div className="bg-blue-50 rounded p-4 border border-blue-200">
+                          <div className="flex items-center gap-2 mb-3">
+                            <MessageSquare className="text-blue-600" size={18} />
+                            <p className="text-sm font-semibold text-blue-900">Admin Response</p>
+                          </div>
+                          <div className="space-y-2">
+                            {JSON.parse(ticket.responses).map((response: any, idx: number) => (
+                              <div key={idx} className="text-sm text-gray-700 pl-6 border-l-2 border-blue-300">
+                                <p className="text-xs text-gray-500 mb-1">{new Date(response.timestamp).toLocaleString()}</p>
+                                <p>{response.message}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {ticketTotalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-6">
+                    <button
+                      onClick={() => handlePageChange(1, 'ticket')}
+                      disabled={ticketPage === 1}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      First
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(ticketPage - 1, 'ticket')}
+                      disabled={ticketPage === 1}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: ticketTotalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page, 'ticket')}
+                        className={`px-3 py-2 rounded-md ${
+                          ticketPage === page
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => handlePageChange(ticketPage + 1, 'ticket')}
+                      disabled={ticketPage === ticketTotalPages}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(ticketTotalPages, 'ticket')}
+                      disabled={ticketPage === ticketTotalPages}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Last
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>

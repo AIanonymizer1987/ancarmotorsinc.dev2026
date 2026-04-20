@@ -9,8 +9,11 @@ import { useAuth } from '../context/AuthContext';
 type ServiceType = 'order' | 'test-drive';
 
 export default function Services() {
-  const [activeService, setActiveService] = useState<ServiceType>('order');
   const [searchParams] = useSearchParams();
+  const serviceParam = searchParams.get('service');
+  const [activeService, setActiveService] = useState<ServiceType>(
+    serviceParam === 'test-drive' ? 'test-drive' : 'order'
+  );
   const navigate = useNavigate();
   const { user } = useAuth();
   const vehicleId = searchParams.get('vehicle');

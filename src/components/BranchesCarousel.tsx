@@ -23,6 +23,27 @@ export default function BranchesCarousel() {
 
   const currentBranch = branches[currentIndex];
 
+  const openCurrentMap = () => {
+    const queryUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      currentBranch.address
+    )}`;
+    window.open(queryUrl, '_blank', 'noopener noreferrer');
+  };
+
+  const handleContact = async () => {
+    const phone = currentBranch.phone;
+    const sanitizedTel = phone.replace(/[^+\d]/g, '');
+
+    try {
+      await navigator.clipboard.writeText(phone);
+    } catch (error) {
+      console.warn('Unable to copy phone number to clipboard:', error);
+    }
+
+    window.location.href = `tel:${sanitizedTel}`;
+  };
+
+
   return (
     <section className="py-16 bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -129,10 +150,18 @@ export default function BranchesCarousel() {
               </div>
 
               <div className="flex gap-3">
-                <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition-colors">
+                <button
+                  onClick={openCurrentMap}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition-colors"
+                  type="button"
+                >
                   Get Directions
                 </button>
-                <button className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 py-2 px-4 rounded-lg font-semibold transition-colors">
+                <button
+                  onClick={handleContact}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 py-2 px-4 rounded-lg font-semibold transition-colors"
+                  type="button"
+                >
                   Contact
                 </button>
               </div>

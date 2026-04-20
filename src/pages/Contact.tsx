@@ -4,6 +4,7 @@ import Footer from '../components/Footer';
 import BranchesCarousel from '../components/BranchesCarousel';
 import { useAuth } from '../context/AuthContext';
 import { addTicket, generateTicketId } from '../utils/api';
+import { sendSupportTicketCopyEmail } from '../utils/email';
 import { toast } from 'react-toastify';
 
 export default function Contact() {
@@ -39,16 +40,42 @@ export default function Contact() {
     setSubmitting(true);
     try {
       const ticketId = generateTicketId();
+      const userEmail = user.user_email || user.email;
+      const userName = user.name || user.user_name || 'Customer';
+
+      if (!userEmail) {
+        throw new Error('Unable to determine customer email for ticket confirmation.');
+      }
+
       await addTicket({
         ticket_id: ticketId,
         user_id: user.id.toString(),
-        username: user.name,
-        user_email: user.user_email,
+        username: userName,
+        user_email: userEmail,
         nature_of_concern: formData.nature_of_concern,
         title: formData.title,
         body: formData.body,
         status: 'open',
       });
+
+      try {
+        await sendSupportTicketCopyEmail(userEmail, {
+          ticket_id: ticketId,
+          user_id: user.id.toString(),
+          username: userName,
+          user_email: userEmail,
+          nature_of_concern: formData.nature_of_concern,
+          title: formData.title,
+          body: formData.body,
+          status: 'open',
+        }, {
+          user_name: userName,
+          user_email: userEmail,
+        });
+      } catch (emailError) {
+        console.error('Failed to send support ticket copy email:', emailError);
+        toast.warning('Ticket submitted, but we could not send the confirmation email.');
+      }
       
       toast.success(`Ticket #${ticketId} submitted successfully! We will review it shortly.`);
       setFormData({

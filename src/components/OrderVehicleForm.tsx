@@ -262,6 +262,7 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
               : null,
           },
         }),
+        delivery_address: user.address || '',
         user_id: user.id.toString(),
         username: user.name,
       };

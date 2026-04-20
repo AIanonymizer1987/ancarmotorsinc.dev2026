@@ -91,10 +91,15 @@ CREATE TABLE IF NOT EXISTS orders (
   product_payment_status VARCHAR(50) DEFAULT 'pending',
   payment_reference VARCHAR(255),
   product_transaction TEXT,
+  delivery_address TEXT,
   order_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   user_id VARCHAR(255) NOT NULL,
   username VARCHAR(255)
 );
+
+-- Ensure product_transaction is TEXT for long JSON strings
+ALTER TABLE orders ALTER COLUMN product_transaction TYPE TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address TEXT;
 
 -- Create test_drives table
 CREATE TABLE IF NOT EXISTS test_drives (

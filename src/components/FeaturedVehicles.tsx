@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Gauge, Fuel, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Fuel, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getVehicles } from '../utils/api';
 import type { Vehicle } from '../types';
 

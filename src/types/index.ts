@@ -35,6 +35,8 @@ export interface User {
   id_verification_requested_at?: string | null;
   voucher_balance?: number;
   voucher_codes?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Order {
@@ -58,6 +60,7 @@ export interface Order {
   product_payment_status: string;
   payment_reference?: string;
   product_transaction: string;
+  delivery_address?: string;
   order_timestamp: string;
   user_id: string;
   username: string;
@@ -78,6 +81,8 @@ export interface Supplier {
   contact_email: string;
   contact_phone: string;
   address: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Ticket {

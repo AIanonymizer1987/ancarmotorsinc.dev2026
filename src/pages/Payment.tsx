@@ -3,11 +3,11 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
-import { getOrder, updateOrder } from '../utils/api';
+import { getOrder, updateOrder, getUserById } from '../utils/api';
 import { sendNotificationEmail, sendReceiptSummaryEmail } from '../utils/email';
 import { toast } from 'react-toastify';
 
-type Step = 'otp' | 'payment' | 'verification' | 'receipt';
+type Step = 'user_info' | 'payment' | 'verification' | 'receipt';
 
 const Payment: React.FC = () => {
   const { user } = useAuth();
@@ -15,7 +15,7 @@ const Payment: React.FC = () => {
   const navigate = useNavigate();
   const orderId = searchParams.get('order');
 
-  const [currentStep, setCurrentStep] = useState<Step>('otp');
+  const [currentStep, setCurrentStep] = useState<Step>('user_info');
   const [order, setOrder] = useState<any>(null);
   const [transactionData, setTransactionData] = useState<any>(null);
   const [otp, setOtp] = useState('');
@@ -25,6 +25,41 @@ const Payment: React.FC = () => {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [transactionResult, setTransactionResult] = useState<'success' | 'failed' | null>(null);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [useCustomAddress, setUseCustomAddress] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvc, setCvc] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+
+  const validatePaymentDetails = () => {
+    if (paymentMethod === 'credit_card') {
+      if (!cardNumber || !cardHolder || !expiryDate || !cvc) {
+        toast.error('Please fill in all credit card details.');
+        return false;
+      }
+      const normalizedCard = cardNumber.replace(/\s+/g, '');
+      if (!/^\d{12,19}$/.test(normalizedCard)) {
+        toast.error('Enter a valid credit card number.');
+        return false;
+      }
+      if (!/^\d{3,4}$/.test(cvc)) {
+        toast.error('Enter a valid card CVC.');
+        return false;
+      }
+    }
+    if (paymentMethod === 'bank_transfer') {
+      if (!bankName || !accountNumber || !accountHolder) {
+        toast.error('Please fill in all bank transfer details.');
+        return false;
+      }
+    }
+    return true;
+  };
 
   useEffect(() => {
     const parsedOrderId = orderId ? Number(orderId) : NaN;
@@ -53,45 +88,29 @@ const Payment: React.FC = () => {
       } catch {
         toast.error('Order not found');
         navigate('/');
-      } finally {
-        setLoading(false);
       }
     };
+
+    const fetchUserData = async () => {
+      try {
+        const fullUser = await getUserById(user.id);
+        setUserData(fullUser);
+        const verificationStatus = fullUser?.id_verification_status || '';
+        if (!['verified', 'approved'].includes(verificationStatus)) {
+          navigate('/profile?tab=identity');
+          return;
+        }
+        setDeliveryAddress(fullUser?.user_address || '');
+        setCurrentStep('payment');
+      } catch {
+        toast.error('Failed to load user data');
+        navigate('/');
+      }
+    };
+
     fetchOrder();
+    fetchUserData().finally(() => setLoading(false));
   }, [user, orderId, navigate]);
-
-  const sendOtp = async () => {
-    if (!user?.email) return;
-
-    try {
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      localStorage.setItem(`otp_${orderId}`, otpCode); // Mock storage
-
-      await sendNotificationEmail(user.email, 'Your payment OTP code', 'Payment verification OTP', 'Use the code below to verify your payment and complete your order.', {
-        detailsHtml: `<div style="font-size:16px; line-height:1.5;">Your payment OTP is:<br /><strong style="font-size:24px; color:#2563eb;">${otpCode}</strong></div>`,
-        footerText: 'If you did not request this, please ignore this email.',
-        extraParams: {
-          otp: otpCode,
-          order_id: orderId,
-        },
-      });
-
-      setOtpSent(true);
-      toast.success('OTP sent to your email');
-    } catch {
-      toast.error('Failed to send OTP');
-    }
-  };
-
-  const verifyOtp = () => {
-    const storedOtp = localStorage.getItem(`otp_${orderId}`);
-    if (otp === storedOtp) {
-      setCurrentStep('payment');
-      toast.success('OTP verified');
-    } else {
-      toast.error('Invalid OTP');
-    }
-  };
 
   const mockPaymentProcess = async (method: string, amount: number) => {
     setPaymentProcessing(true);
@@ -107,9 +126,16 @@ const Payment: React.FC = () => {
     return result;
   };
 
+  const proceedToPayment = () => {
+    setCurrentStep('payment');
+  };
+
   const processPayment = async () => {
     if (!paymentMethod) {
       toast.error('Please select a payment method');
+      return;
+    }
+    if (!validatePaymentDetails()) {
       return;
     }
     if (!order) {
@@ -134,8 +160,8 @@ const Payment: React.FC = () => {
 
     try {
       await updateOrder(parseInt(orderId), {
-        product_status: 'completed',
         product_payment_status: 'paid',
+        delivery_address: deliveryAddress,
       });
       setCurrentStep('receipt');
       toast.success('Payment completed successfully');
@@ -163,7 +189,7 @@ const Payment: React.FC = () => {
     if (!transactionData) return order?.product_total_price || 0;
     if (order?.product_payment === 'cash') return transactionData.paymentDetails?.cashTotal || order.product_total_price;
     if (order?.product_payment === 'bank') return transactionData.paymentDetails?.bankTotal || order.product_total_price;
-    if (order?.product_payment === 'installment') return transactionData.paymentDetails?.installment?.installmentTotal || order.product_total_price;
+    if (order?.product_payment === 'installment') return transactionData.paymentDetails?.installment?.installmentPayment || order.product_total_price;
     return order.product_total_price;
   })();
 
@@ -212,9 +238,11 @@ const Payment: React.FC = () => {
 
     const detailsHtml = `
       <table style="width:100%;font-size:14px;border-collapse:collapse;">
+        <tr><td colspan="2" style="padding:8px;"><img src="${order.product_img_url}" alt="${order.product_name}" style="width:100px; height:100px; object-fit:cover; border-radius:8px;" /></td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Order code</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${order.order_code || 'N/A'}</td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Vehicle</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${order.product_name} (${order.product_model})</td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Payment type</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${paymentModeLabel}</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Delivery address</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${deliveryAddress || order.delivery_address || 'N/A'}</td></tr>
         ${order.voucher_code ? `<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Voucher used</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${order.voucher_code}</td></tr>` : ''}
         ${order.discount_amount ? `<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Discount</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">-${formatCurrency(order.discount_amount)}</td></tr>` : ''}
         <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Amount due</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${formatCurrency(amountDue)}</td></tr>
@@ -269,8 +297,9 @@ const Payment: React.FC = () => {
       );
 
       toast.success('Receipt sent to your email');
-    } catch {
-      toast.error('Failed to send receipt');
+    } catch (error: any) {
+      console.error('Failed to send receipt', error);
+      toast.error(error?.message || 'Failed to send receipt');
     }
   };
 
@@ -295,15 +324,15 @@ const Payment: React.FC = () => {
 
           {/* Progress Indicator */}
           <div className="flex justify-between mb-8">
-            {(['otp', 'payment', 'verification', 'receipt'] as Step[]).map((step, index) => (
+            {(['user_info', 'payment', 'verification', 'receipt'] as Step[]).map((step, index) => (
               <div key={step} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                   currentStep === step ? 'bg-blue-600 text-white' :
-                  ['otp', 'payment', 'verification', 'receipt'].indexOf(currentStep) > index ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
+                  ['user_info', 'payment', 'verification', 'receipt'].indexOf(currentStep) > index ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
                 }`}>
                   {index + 1}
                 </div>
-                <span className="ml-2 text-sm capitalize">{step}</span>
+                <span className="ml-2 text-sm capitalize">{step.replace('_', ' ')}</span>
                 {index < 3 && <div className="w-12 h-1 bg-gray-300 mx-2"></div>}
               </div>
             ))}
@@ -311,11 +340,14 @@ const Payment: React.FC = () => {
 
           <div className="bg-gray-50 p-4 rounded-md mb-6">
             <h2 className="text-lg font-semibold mb-3">Order Summary</h2>
-            <div className="grid gap-2 text-sm text-gray-700">
-              <div className="flex justify-between">
-                <span>Vehicle</span>
-                <span>{order.product_name}</span>
+            <div className="flex items-center gap-4 mb-4">
+              <img src={order.product_img_url} alt={order.product_name} className="w-16 h-16 object-cover rounded" />
+              <div>
+                <div className="font-semibold">{order.product_name}</div>
+                <div className="text-sm text-gray-600">{order.product_model}</div>
               </div>
+            </div>
+            <div className="grid gap-2 text-sm text-gray-700">
               <div className="flex justify-between">
                 <span>Order code</span>
                 <span>{order.order_code || 'N/A'}</span>
@@ -339,36 +371,66 @@ const Payment: React.FC = () => {
             </div>
           </div>
 
-          {currentStep === 'otp' && (
+          {currentStep === 'user_info' && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Verify Your Identity</h2>
-              <p>We've sent a 6-digit OTP to your email for verification.</p>
-              {!otpSent && (
-                <button
-                  onClick={sendOtp}
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
-                  Send OTP
-                </button>
-              )}
-              {otpSent && (
-                <>
+              <h2 className="text-lg font-semibold">User Information</h2>
+              <div className="bg-gray-50 p-4 rounded-md">
+                <div className="grid gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Name:</span>
+                    <span>{userData?.user_name || user?.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Email:</span>
+                    <span>{user?.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Phone:</span>
+                    <span>{userData?.user_phone_number || 'Not provided'}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-md font-semibold">Delivery Address</h3>
+                <div className="flex items-center gap-2">
                   <input
-                    type="text"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    placeholder="Enter 6-digit OTP"
-                    className="w-full border rounded px-3 py-2"
-                    maxLength={6}
+                    type="radio"
+                    id="registered"
+                    name="address"
+                    checked={!useCustomAddress}
+                    onChange={() => setUseCustomAddress(false)}
                   />
-                  <button
-                    onClick={verifyOtp}
-                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                  >
-                    Verify OTP
-                  </button>
-                </>
-              )}
+                  <label htmlFor="registered" className="text-sm">Use registered address</label>
+                </div>
+                <div className="text-sm text-gray-600 ml-4">
+                  {userData?.user_address || 'No address registered'}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="custom"
+                    name="address"
+                    checked={useCustomAddress}
+                    onChange={() => setUseCustomAddress(true)}
+                  />
+                  <label htmlFor="custom" className="text-sm">Use custom address</label>
+                </div>
+                {useCustomAddress && (
+                  <textarea
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    placeholder="Enter custom delivery address"
+                    rows={3}
+                  />
+                )}
+              </div>
+              <button
+                onClick={proceedToPayment}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+              >
+                Proceed to Payment
+              </button>
             </div>
           )}
 
@@ -392,6 +454,71 @@ const Payment: React.FC = () => {
                   </label>
                 ))}
               </div>
+              {paymentMethod === 'credit_card' && (
+                <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-700">
+                  <h3 className="font-semibold">Credit Card Details</h3>
+                  <div className="grid gap-4">
+                    <input
+                      type="text"
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(e.target.value)}
+                      placeholder="Card number"
+                      className="w-full border rounded-md px-3 py-2"
+                    />
+                    <input
+                      type="text"
+                      value={cardHolder}
+                      onChange={(e) => setCardHolder(e.target.value)}
+                      placeholder="Cardholder name"
+                      className="w-full border rounded-md px-3 py-2"
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        value={expiryDate}
+                        onChange={(e) => setExpiryDate(e.target.value)}
+                        placeholder="Expiry MM/YY"
+                        className="w-full border rounded-md px-3 py-2"
+                      />
+                      <input
+                        type="text"
+                        value={cvc}
+                        onChange={(e) => setCvc(e.target.value)}
+                        placeholder="CVC"
+                        className="w-full border rounded-md px-3 py-2"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {paymentMethod === 'bank_transfer' && (
+                <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-700">
+                  <h3 className="font-semibold">Bank Transfer Details</h3>
+                  <div className="grid gap-4">
+                    <input
+                      type="text"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                      placeholder="Bank name"
+                      className="w-full border rounded-md px-3 py-2"
+                    />
+                    <input
+                      type="text"
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value)}
+                      placeholder="Account number"
+                      className="w-full border rounded-md px-3 py-2"
+                    />
+                    <input
+                      type="text"
+                      value={accountHolder}
+                      onChange={(e) => setAccountHolder(e.target.value)}
+                      placeholder="Account holder name"
+                      className="w-full border rounded-md px-3 py-2"
+                    />
+                  </div>
+                </div>
+              )}
               <div className="bg-white border border-gray-200 rounded-md p-4 text-sm text-gray-700">
                 <div className="font-semibold mb-2">Payment details</div>
                 {orderSummaryLines.map((line) => (

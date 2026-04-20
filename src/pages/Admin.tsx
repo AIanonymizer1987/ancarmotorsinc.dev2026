@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
-import { getVehicles, getUsers, getOrders, getSuppliers, addVehicle, updateVehicle, deleteVehicle, updateOrder, addSupplier, updateSupplier, deleteSupplier, getTickets, updateTicket, updateUserVerificationStatus, exportTableData, importTableData, getDatabaseHealth } from '../utils/api';
+import { getVehicles, getUsers, getOrders, getSuppliers, addVehicle, updateVehicle, deleteVehicle, updateOrder, addSupplier, deleteSupplier, getTickets, updateTicket, updateUserVerificationStatus, exportTableData, importTableData, getDatabaseHealth } from '../utils/api';
+import { sendOrderStatusEmail, sendTicketResponseEmail } from '../utils/email';
 import type { Vehicle, Order, User } from '../types';
 import { toast } from 'react-toastify';
 import { PieChart, Pie, Cell, Tooltip, BarChart, Bar, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -457,7 +458,7 @@ const Admin: React.FC = () => {
   };
 
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
+    const filtered = orders.filter((order) => {
       const search = orderSearch.toLowerCase();
       const matchesSearch =
         order.order_id.toString().includes(search) ||
@@ -470,6 +471,12 @@ const Admin: React.FC = () => {
       const matchesRole = true;
       return matchesSearch && matchesStatus && matchesRole;
     });
+
+    return [...filtered].sort((a, b) => {
+      const timeA = a.order_timestamp ? new Date(a.order_timestamp).getTime() : 0;
+      const timeB = b.order_timestamp ? new Date(b.order_timestamp).getTime() : 0;
+      return timeB - timeA;
+    });
   }, [orders, orderSearch, orderStatusFilter]);
 
   const paginatedOrders = useMemo(() => {
@@ -478,7 +485,7 @@ const Admin: React.FC = () => {
   }, [filteredOrders, orderPage]);
 
   const filteredUsers = useMemo(() => {
-    return users.filter((item) => {
+    const filtered = users.filter((item) => {
       const search = userSearch.toLowerCase();
       const matchesSearch =
         item.user_name.toLowerCase().includes(search) ||
@@ -489,6 +496,12 @@ const Admin: React.FC = () => {
       const matchesRole = userRoleFilter === 'all' || item.user_role === userRoleFilter;
       return matchesSearch && matchesRole;
     });
+
+    return [...filtered].sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeB - timeA;
+    });
   }, [users, userSearch, userRoleFilter]);
 
   const paginatedUsers = useMemo(() => {
@@ -497,7 +510,7 @@ const Admin: React.FC = () => {
   }, [filteredUsers, userPage]);
 
   const filteredSuppliers = useMemo(() => {
-    return suppliers.filter((supplier) => {
+    const filtered = suppliers.filter((supplier) => {
       const search = supplierSearch.toLowerCase();
       return (
         (supplier.name || '').toLowerCase().includes(search) ||
@@ -505,6 +518,12 @@ const Admin: React.FC = () => {
         (supplier.email || '').toLowerCase().includes(search) ||
         (supplier.contact_phone || '').toLowerCase().includes(search)
       );
+    });
+
+    return [...filtered].sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeB - timeA;
     });
   }, [suppliers, supplierSearch]);
 
@@ -514,7 +533,7 @@ const Admin: React.FC = () => {
   }, [filteredSuppliers, supplierPage]);
 
   const filteredTickets = useMemo(() => {
-    return tickets.filter((ticket) => {
+    const filtered = tickets.filter((ticket) => {
       const search = ticketSearch.toLowerCase();
       const matchesSearch =
         ticket.ticket_id.toString().includes(search) ||
@@ -523,6 +542,12 @@ const Admin: React.FC = () => {
         ticket.nature_of_concern.toLowerCase().includes(search);
       const matchesStatus = ticketStatusFilter === 'all' || ticket.status === ticketStatusFilter;
       return matchesSearch && matchesStatus;
+    });
+
+    return [...filtered].sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeB - timeA;
     });
   }, [tickets, ticketSearch, ticketStatusFilter]);
 
@@ -600,10 +625,45 @@ const Admin: React.FC = () => {
   const handleUpdateOrderStatus = async (orderId: number, status: string) => {
     try {
       await updateOrder(orderId, { product_status: status });
-      setOrders(orders.map(o => o.order_id === orderId ? { ...o, product_status: status } : o));
+      const updatedOrder = { ...orders.find(o => o.order_id === orderId)!, product_status: status };
+      setOrders(orders.map(o => o.order_id === orderId ? updatedOrder : o));
+
+      // Send status notification email
+      const user = users.find(u => u.id === parseInt(updatedOrder.user_id));
+      const vehicle = vehicles.find(v =>
+        v.vehicle_name === updatedOrder.product_name &&
+        v.vehicle_model === updatedOrder.product_model &&
+        v.vehicle_base_price === updatedOrder.product_base_price
+      );
+
+      if (user && vehicle && updatedOrder.order_code) {
+        try {
+          await sendOrderStatusEmail(
+            user.user_email,
+            updatedOrder.order_code,
+            status as 'confirmed' | 'processing' | 'out_for_delivery' | 'completed' | 'canceled',
+            updatedOrder,
+            vehicle
+          );
+        } catch (emailError) {
+          console.error('Failed to send order status email:', emailError);
+          // Don't fail the status update if email fails
+        }
+      }
+
       toast.success('Order status updated');
     } catch {
       toast.error('Failed to update order status');
+    }
+  };
+
+  const handleUpdatePaymentStatus = async (orderId: number, paymentStatus: string) => {
+    try {
+      await updateOrder(orderId, { product_payment_status: paymentStatus });
+      setOrders(orders.map(o => o.order_id === orderId ? { ...o, product_payment_status: paymentStatus } : o));
+      toast.success('Payment status updated');
+    } catch {
+      toast.error('Failed to update payment status');
     }
   };
 
@@ -940,64 +1000,100 @@ const Admin: React.FC = () => {
                       <option value="all">All Statuses</option>
                       <option value="pending">Pending</option>
                       <option value="processing">Processing</option>
+                      <option value="out_for_delivery">Out for Delivery</option>
                       <option value="completed">Completed</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                  <table className="w-full">
+                <div className="bg-white rounded-lg shadow overflow-x-auto">
+                  <table className="w-full table-fixed">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-2 text-left"></th>
-                        <th className="px-4 py-2 text-left">Image</th>
-                        <th className="px-4 py-2 text-left">Order ID</th>
-                        <th className="px-4 py-2 text-left">Order Code</th>
-                        <th className="px-4 py-2 text-left">User</th>
-                        <th className="px-4 py-2 text-left">Vehicle</th>
-                        <th className="px-4 py-2 text-left">Total Price</th>
-                        <th className="px-4 py-2 text-left">Status</th>
-                        <th className="px-4 py-2 text-left">Payment Ref</th>
+                        <th className="px-2 py-2 text-left w-8"></th>
+                        <th className="px-2 py-2 text-left w-16">Image</th>
+                        <th className="px-2 py-2 text-left w-16">Order ID</th>
+                        <th className="px-2 py-2 text-left w-20">Order Code</th>
+                        <th className="px-2 py-2 text-left w-16">User</th>
+                        <th className="px-2 py-2 text-left w-32">Delivery Address</th>
+                        <th className="px-2 py-2 text-left w-32">Vehicle</th>
+                        <th className="px-2 py-2 text-left w-40">Specs</th>
+                        <th className="px-2 py-2 text-left w-20">Total Price</th>
+                        <th className="px-2 py-2 text-left w-24">Status</th>
+                        <th className="px-2 py-2 text-left w-24">Payment Status</th>
+                        <th className="px-2 py-2 text-left w-20">Payment Ref</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedOrders.map((order) => (
                         <tr key={order.order_id} className="border-t">
-                          <td className="px-4 py-2">
-                            <Package className="w-5 h-5 text-green-600" />
+                          <td className="px-2 py-2">
+                            <Package className="w-4 h-4 text-green-600" />
                           </td>
-                          <td className="px-4 py-2">
+                          <td className="px-2 py-2">
                             {order.product_img_url ? (
                               <img
                                 src={order.product_img_url}
                                 alt={order.product_name}
-                                className="w-16 h-12 object-cover rounded"
+                                className="w-12 h-8 object-cover rounded"
                               />
                             ) : (
-                              <div className="w-16 h-12 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-400">
-                                No image
+                              <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-400">
+                                N/A
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-2">{order.order_id}</td>
-                          <td className="px-4 py-2">{order.order_code || '—'}</td>
-                          <td className="px-4 py-2">{order.user_id}</td>
-                          <td className="px-4 py-2">{order.product_name}</td>
-                          <td className="px-4 py-2">₱{Number(order.product_total_price || 0).toLocaleString()}</td>
-                          <td className="px-4 py-2">
+                          <td className="px-2 py-2 text-sm font-mono">{order.order_id}</td>
+                          <td className="px-2 py-2 text-sm font-mono">{order.order_code || '—'}</td>
+                          <td className="px-2 py-2 text-sm">{order.user_id}</td>
+                          <td className="px-2 py-2 text-sm max-w-32 truncate" title={order.delivery_address || '—'}>
+                            {order.delivery_address || '—'}
+                          </td>
+                          <td className="px-2 py-2 text-sm max-w-32 truncate" title={order.product_name}>
+                            {order.product_name}
+                          </td>
+                          <td className="px-2 py-2 text-xs">
+                            {(() => {
+                              const specs = [];
+                              if (order.product_color) specs.push(`C:${order.product_color}`);
+                              if (order.product_transmission) specs.push(`T:${order.product_transmission}`);
+                              if (order.product_pl_capacity) specs.push(`P:${order.product_pl_capacity}`);
+                              if (order.product_tw_capacity) specs.push(`Tw:${order.product_tw_capacity}`);
+                              
+                              return specs.length > 0 ? specs.join(' ') : '—';
+                            })()}
+                          </td>
+                          <td className="px-2 py-2 text-sm font-semibold">₱{Number(order.product_total_price || 0).toLocaleString()}</td>
+                          <td className="px-2 py-2">
                             <select
                               value={order.product_status}
                               onChange={(e) => handleUpdateOrderStatus(order.order_id, e.target.value)}
-                              className="border rounded px-2 py-1"
+                              className="border rounded px-1 py-0.5 text-xs w-full"
                             >
                               <option value="pending">Pending</option>
                               <option value="processing">Processing</option>
+                              <option value="out_for_delivery">Out for Delivery</option>
                               <option value="completed">Completed</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
                           </td>
-                          <td className="px-4 py-2">{order.payment_reference || '—'}</td>
+                          <td className="px-2 py-2">
+                            <select
+                              value={order.product_payment_status}
+                              onChange={(e) => handleUpdatePaymentStatus(order.order_id, e.target.value)}
+                              className="border rounded px-1 py-0.5 text-xs w-full"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="processing">Processing</option>
+                              <option value="paid">Paid</option>
+                              <option value="failed">Failed</option>
+                              <option value="refunded">Refunded</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-2 text-xs font-mono max-w-20 truncate" title={order.payment_reference || '—'}>
+                            {order.payment_reference || '—'}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1009,6 +1105,14 @@ const Admin: React.FC = () => {
                     Showing {paginatedOrders.length} of {filteredOrders.length} orders
                   </p>
                   <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={orderPage <= 1}
+                      onClick={() => setOrderPage(1)}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      First
+                    </button>
                     <button
                       type="button"
                       disabled={orderPage <= 1}
@@ -1025,6 +1129,14 @@ const Admin: React.FC = () => {
                       className="px-3 py-2 border rounded disabled:opacity-50"
                     >
                       Next
+                    </button>
+                    <button
+                      type="button"
+                      disabled={orderPage >= Math.ceil(filteredOrders.length / ordersPerPage)}
+                      onClick={() => setOrderPage(Math.max(1, Math.ceil(filteredOrders.length / ordersPerPage)))}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      Last
                     </button>
                   </div>
                 </div>
@@ -1144,6 +1256,14 @@ const Admin: React.FC = () => {
                     <button
                       type="button"
                       disabled={userPage <= 1}
+                      onClick={() => setUserPage(1)}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      First
+                    </button>
+                    <button
+                      type="button"
+                      disabled={userPage <= 1}
                       onClick={() => setUserPage((page) => Math.max(page - 1, 1))}
                       className="px-3 py-2 border rounded disabled:opacity-50"
                     >
@@ -1157,6 +1277,14 @@ const Admin: React.FC = () => {
                       className="px-3 py-2 border rounded disabled:opacity-50"
                     >
                       Next
+                    </button>
+                    <button
+                      type="button"
+                      disabled={userPage >= Math.ceil(filteredUsers.length / usersPerPage)}
+                      onClick={() => setUserPage(Math.max(1, Math.ceil(filteredUsers.length / usersPerPage)))}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      Last
                     </button>
                   </div>
                 </div>
@@ -1668,6 +1796,14 @@ const Admin: React.FC = () => {
                     <button
                       type="button"
                       disabled={supplierPage <= 1}
+                      onClick={() => setSupplierPage(1)}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      First
+                    </button>
+                    <button
+                      type="button"
+                      disabled={supplierPage <= 1}
                       onClick={() => setSupplierPage((page) => Math.max(page - 1, 1))}
                       className="px-3 py-2 border rounded disabled:opacity-50"
                     >
@@ -1681,6 +1817,14 @@ const Admin: React.FC = () => {
                       className="px-3 py-2 border rounded disabled:opacity-50"
                     >
                       Next
+                    </button>
+                    <button
+                      type="button"
+                      disabled={supplierPage >= Math.ceil(filteredSuppliers.length / suppliersPerPage)}
+                      onClick={() => setSupplierPage(Math.max(1, Math.ceil(filteredSuppliers.length / suppliersPerPage)))}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      Last
                     </button>
                   </div>
                 </div>
@@ -1861,6 +2005,14 @@ const Admin: React.FC = () => {
                     <button
                       type="button"
                       disabled={ticketPage <= 1}
+                      onClick={() => setTicketPage(1)}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      First
+                    </button>
+                    <button
+                      type="button"
+                      disabled={ticketPage <= 1}
                       onClick={() => setTicketPage((page) => Math.max(page - 1, 1))}
                       className="px-3 py-2 border rounded disabled:opacity-50"
                     >
@@ -1874,6 +2026,14 @@ const Admin: React.FC = () => {
                       className="px-3 py-2 border rounded disabled:opacity-50"
                     >
                       Next
+                    </button>
+                    <button
+                      type="button"
+                      disabled={ticketPage >= Math.ceil(filteredTickets.length / ticketsPerPage)}
+                      onClick={() => setTicketPage(Math.max(1, Math.ceil(filteredTickets.length / ticketsPerPage)))}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      Last
                     </button>
                   </div>
                 </div>
@@ -1915,11 +2075,25 @@ const TicketRow: React.FC<{ ticket: any; onUpdate: () => void }> = ({ ticket, on
         responses: JSON.stringify(responses),
       });
 
+      // Send email notification to customer
+      try {
+        await sendTicketResponseEmail(
+          ticket.user_email,
+          ticket.ticket_id,
+          ticket.title,
+          responseText,
+          ticket.username
+        );
+      } catch (emailError) {
+        console.error('Failed to send ticket response email:', emailError);
+        toast.warning('Response added, but failed to send email notification');
+      }
+
       toast.success('Response added successfully');
       setResponseText('');
       setShowResponse(false);
       onUpdate();
-    } catch (error) {
+    } catch {
       toast.error('Failed to add response');
     } finally {
       setSubmitting(false);
@@ -1931,7 +2105,7 @@ const TicketRow: React.FC<{ ticket: any; onUpdate: () => void }> = ({ ticket, on
       await updateTicket(ticket.id, { status: newStatus });
       toast.success(`Ticket status updated to ${newStatus}`);
       onUpdate();
-    } catch (error) {
+    } catch {
       toast.error('Failed to update ticket status');
     }
   };

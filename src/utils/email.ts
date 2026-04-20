@@ -59,16 +59,22 @@ export const sendNotificationEmail = async (
     detailsHtml?: string;
     footerText?: string;
     extraParams?: Record<string, unknown>;
+    fromEmail?: string;
+    fromName?: string;
+    replyTo?: string;
   }
 ) => {
   const templateParams: Record<string, any> = {
     to_email: toEmail,
     email: toEmail,
-    reply_to: toEmail,
+    reply_to: options?.replyTo || options?.fromEmail || toEmail,
     subject,
     headline,
     body_text: bodyText,
   };
+
+  if (options?.fromEmail) templateParams.from_email = options.fromEmail;
+  if (options?.fromName) templateParams.from_name = options.fromName;
 
   // Only add optional fields if they have non-empty values
   // EmailJS corrupts templates when variables are referenced but not provided
@@ -100,6 +106,90 @@ export const sendNotificationEmail = async (
   return sendEmail(NOTIFICATION_TEMPLATE_ID, templateParams);
 };
 
+export const sendSupportTicketCopyEmail = async (
+  toEmail: string,
+  ticket: {
+    ticket_id: string;
+    nature_of_concern: string;
+    title: string;
+    body: string;
+    status: string;
+    user_id: string;
+    username: string;
+    user_email: string;
+  },
+  user: {
+    user_name?: string;
+    user_email: string;
+  }
+) => {
+  const subject = `Support Ticket Received - ${ticket.ticket_id}`;
+  const headline = 'Your Support Ticket Has Been Submitted';
+  const bodyText = `Thank you for contacting Ancar Motors Inc. We have received your support ticket and will respond as soon as possible.`;
+  const detailsHtml = `
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: #2563eb; margin-bottom: 10px;">Ticket Details</h3>
+      <table style="width:100%;font-size:14px;border-collapse:collapse;border:1px solid #e5e7eb;">
+        <tr style="background-color:#f9fafb;">
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Ticket ID</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">${ticket.ticket_id}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Type</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">${ticket.nature_of_concern}</td>
+        </tr>
+        <tr style="background-color:#f9fafb;">
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Title</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">${ticket.title}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Status</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">${ticket.status}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: #2563eb; margin-bottom: 10px;">Submitted By</h3>
+      <table style="width:100%;font-size:14px;border-collapse:collapse;border:1px solid #e5e7eb;">
+        <tr style="background-color:#f9fafb;">
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Name</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">${user.user_name || ticket.username}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Email</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">${user.user_email}</td>
+        </tr>
+        <tr style="background-color:#f9fafb;">
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>User ID</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">${ticket.user_id}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: #2563eb; margin-bottom: 10px;">Message</h3>
+      <div style="padding: 15px; border: 1px solid #e5e7eb; background-color: #f9fafb; font-size: 14px; line-height: 1.6; color: #374151;">${ticket.body}</div>
+    </div>
+  `;
+
+  return sendNotificationEmail(toEmail, subject, headline, bodyText, {
+    fromEmail: 'ancarmotorsinc2025@gmail.com',
+    fromName: 'Ancar Motors Inc',
+    replyTo: 'ancarmotorsinc2025@gmail.com',
+    buttonText: 'View Support',
+    buttonUrl: '#',
+    detailsHtml,
+    footerText: 'We will contact you with an update as soon as possible.',
+    extraParams: {
+      ticket_id: ticket.ticket_id,
+      ticket_title: ticket.title,
+      ticket_status: ticket.status,
+      ticket_type: ticket.nature_of_concern,
+    },
+  });
+};
+
 export const sendReceiptSummaryEmail = async (
   toEmail: string,
   subject: string,
@@ -110,11 +200,15 @@ export const sendReceiptSummaryEmail = async (
 ) => {
   return sendEmail(RECEIPT_TEMPLATE_ID, {
     to_email: toEmail,
+    email: toEmail,
+    reply_to: toEmail,
     subject,
     headline,
     body_text: bodyText,
     details_html: detailsHtml,
     footer_text: footerText || '',
+    button_url: '#',
+    button_text: 'View Receipt',
   });
 };
 
@@ -272,9 +366,16 @@ export const sendOrderReceiptEmail = async (
         <div style="flex: 1;">
           <h4 style="margin: 0 0 8px 0; color: #1f2937;">${vehicle.vehicle_name}</h4>
           <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">${vehicle.vehicle_make} ${vehicle.vehicle_model} ${vehicle.vehicle_year}</p>
-          <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Color: ${vehicle.vehicle_color}</p>
-          <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Fuel Type: ${vehicle.vehicle_fuel_type}</p>
-          <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Transmission: ${vehicle.vehicle_transmission || 'N/A'}</p>
+
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+            <h5 style="margin: 0 0 8px 0; color: #374151; font-size: 14px;">Specifications:</h5>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px;">
+              ${order.product_color ? `<div><strong>Color:</strong> ${order.product_color}</div>` : ''}
+              ${order.product_transmission ? `<div><strong>Transmission:</strong> ${order.product_transmission}</div>` : ''}
+              ${order.product_pl_capacity ? `<div><strong>Payload Capacity:</strong> ${order.product_pl_capacity}</div>` : ''}
+              ${order.product_tw_capacity ? `<div><strong>Towing Capacity:</strong> ${order.product_tw_capacity}</div>` : ''}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -385,6 +486,16 @@ export const sendOrderStatusEmail = async (
           <h4 style="margin: 0 0 8px 0; color: #1f2937;">${vehicle.vehicle_name}</h4>
           <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">${vehicle.vehicle_make} ${vehicle.vehicle_model} ${vehicle.vehicle_year}</p>
           <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Quantity: ${order.product_quantity}</p>
+
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+            <h5 style="margin: 0 0 8px 0; color: #374151; font-size: 14px;">Specifications:</h5>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px;">
+              ${order.product_color ? `<div><strong>Color:</strong> ${order.product_color}</div>` : ''}
+              ${order.product_transmission ? `<div><strong>Transmission:</strong> ${order.product_transmission}</div>` : ''}
+              ${order.product_pl_capacity ? `<div><strong>Payload Capacity:</strong> ${order.product_pl_capacity}</div>` : ''}
+              ${order.product_tw_capacity ? `<div><strong>Towing Capacity:</strong> ${order.product_tw_capacity}</div>` : ''}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -621,5 +732,46 @@ export const sendInstallmentPaymentEmail = async (
     body_text: bodyText,
     details_html: detailsHtml,
     footer_text: 'Please keep this schedule for your records. Contact us if you need to modify your payment plan.',
+  });
+};
+
+export const sendTicketResponseEmail = async (
+  toEmail: string,
+  ticketId: string,
+  ticketTitle: string,
+  responseMessage: string,
+  customerName: string
+) => {
+  const subject = `Response to Your Support Ticket #${ticketId}`;
+  const headline = 'We\'ve Responded to Your Support Ticket';
+  const bodyText = `Dear ${customerName},\n\nWe've reviewed your support ticket and provided a response. Please see the details below.`;
+
+  const detailsHtml = `
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: #2563eb; margin-bottom: 10px;">Ticket Details</h3>
+      <table style="width:100%;font-size:14px;border-collapse:collapse;border:1px solid #e5e7eb;">
+        <tr style="background-color:#f9fafb;">
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Ticket ID</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">#${ticketId}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Title</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">${ticketTitle}</td>
+        </tr>
+      </table>
+    </div>
+    <div style="background-color: #f0f9ff; border: 1px solid #0ea5e9; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+      <h4 style="margin: 0 0 8px 0; color: #0c4a6e;">Our Response</h4>
+      <p style="margin: 0; font-size: 14px; color: #0c4a6e; white-space: pre-wrap;">${responseMessage}</p>
+    </div>
+  `;
+
+  return sendEmail(NOTIFICATION_TEMPLATE_ID, {
+    to_email: toEmail,
+    subject,
+    headline,
+    body_text: bodyText,
+    details_html: detailsHtml,
+    footer_text: 'If you have any further questions, please don\'t hesitate to reply to this email or create a new support ticket.',
   });
 };

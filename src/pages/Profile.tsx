@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Upload, Lock, Mail, ShieldCheck, Ticket } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ import { toast } from 'react-toastify';
 export default function Profile() {
   const { user, updateUser, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'email' | 'picture' | 'discounts' | 'identity'>('profile');
   
@@ -41,6 +42,13 @@ export default function Profile() {
   const [verificationSent, setVerificationSent] = useState(false);
   const [voucherClaiming, setVoucherClaiming] = useState(false);
   const [idRequestLoading, setIdRequestLoading] = useState(false);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['profile', 'password', 'email', 'picture', 'discounts', 'identity'].includes(tab)) {
+      setActiveTab(tab as typeof activeTab);
+    }
+  }, [searchParams]);
 
   const availableVouchers = [
     { code: 'WELCOME1000', amount: 1000, title: 'Welcome Voucher', description: 'A new account bonus you can apply to your first order.' },

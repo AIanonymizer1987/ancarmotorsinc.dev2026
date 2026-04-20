@@ -120,13 +120,13 @@ const parseList = (value: string) =>
 
                     <div className="flex flex-col sm:flex-row gap-3">
                       <button
-                        onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}`)}
+                        onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}&service=order`)}
                         className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
                       >
                         Order Vehicle
                       </button>
                       <button
-                        onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}`)}
+                        onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}&service=test-drive`)}
                         className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-md hover:bg-gray-50 transition"
                       >
                         Schedule Test Drive

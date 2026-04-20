@@ -40,9 +40,9 @@ const Hero = () => {
               Browse Vehicles
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <button className="border-2 border-white text-white hover:bg-white hover:text-blue-900 px-8 py-4 rounded-lg font-semibold text-lg transition-colors">
-              Schedule Test Drive 
-            </button>
+            <Link to="/vehicles" className="inline-flex items-center justify-center border-2 border-white text-white hover:bg-white hover:text-blue-900 px-8 py-4 rounded-lg font-semibold text-lg transition-colors">
+              Schedule Test Drive
+            </Link>
           </div>
         </div>
       </div>
