@@ -342,6 +342,20 @@ export default function Profile() {
     }
   };
 
+  const handleRemovePicture = async () => {
+    setSubmitting(true);
+    try {
+      await updateProfilePicture(user.id, '');
+      await refreshUser();
+      setPictureUrl('');
+      toast.success('Profile picture removed successfully');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to remove profile picture');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen">
       <Header />
