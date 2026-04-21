@@ -46,3 +46,9 @@
   to = "/.netlify/functions/db-admin"
   status = 200
   force = true
+
+# SPA fallback - serve index.html for all routes not handled above
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -60,11 +60,12 @@ function PagePersistence() {
   useEffect(() => {
     // Only redirect on initial load when at home page
     const savedPage = safeLocalStorage.getItem('lastPage');
-    if (savedPage && location.pathname === '/' && savedPage !== '/' && location.key === 'default') {
-      // Use setTimeout to avoid navigation conflicts during initial render
-      setTimeout(() => {
+    if (savedPage && location.pathname === '/' && savedPage !== '/') {
+      // Small delay to ensure router is ready, especially on mobile
+      const timer = setTimeout(() => {
         navigate(savedPage, { replace: true });
-      }, 0);
+      }, 10);
+      return () => clearTimeout(timer);
     }
   }, []); // Only run once on mount
 
