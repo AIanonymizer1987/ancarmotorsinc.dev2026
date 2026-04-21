@@ -4,6 +4,7 @@ import type { Vehicle } from '../types';
 import { getVehicle, addOrder, updateVehicle, getUserById, updateUser } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import { safeLocalStorage } from '../utils/localStorage';
 
 interface OrderVehicleFormProps {
   onSuccess?: () => void;
@@ -125,14 +126,18 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
   }, [user]);
 
   useEffect(() => {
-    const savedData = localStorage.getItem('orderFormData');
+    const savedData = safeLocalStorage.getItem('orderFormData');
     if (savedData) {
-      setFormData(JSON.parse(savedData));
+      try {
+        setFormData(JSON.parse(savedData));
+      } catch (error) {
+        console.warn('Failed to parse saved form data:', error);
+      }
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('orderFormData', JSON.stringify(formData));
+    safeLocalStorage.setItem('orderFormData', JSON.stringify(formData));
   }, [formData]);
 
   const vehicleColors = vehicle ? parseOptions(vehicle.vehicle_color) : [];

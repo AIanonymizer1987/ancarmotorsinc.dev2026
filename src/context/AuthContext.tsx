@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { getUsers, addUser, updateUser as updateUserAPI } from '../utils/api';
+import { safeLocalStorage } from '../utils/localStorage';
 
 export type PublicUser = {
   id: number;
@@ -46,7 +47,7 @@ const loadAuthState = (): AuthState => {
   }
 
   try {
-    const raw = window.localStorage.getItem(CURRENT_KEY);
+    const raw = safeLocalStorage.getItem(CURRENT_KEY);
     if (!raw) return { user: null, token: null, expiresAt: null };
     return JSON.parse(raw) as AuthState;
   } catch {
@@ -59,9 +60,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (authState.user && authState.token && authState.expiresAt) {
-      window.localStorage.setItem(CURRENT_KEY, JSON.stringify(authState));
+      safeLocalStorage.setItem(CURRENT_KEY, JSON.stringify(authState));
     } else {
-      window.localStorage.removeItem(CURRENT_KEY);
+      safeLocalStorage.removeItem(CURRENT_KEY);
     }
   }, [authState]);
 

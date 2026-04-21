@@ -1,4 +1,5 @@
 import { getVehicleById } from './vehicles.ts';
+import { safeLocalStorage } from '../utils/localStorage';
 
     export type OrderStatus = 'in progress' | 'out for delivery' | 'completed' | 'cancelled';
 
@@ -43,9 +44,9 @@ import { getVehicleById } from './vehicles.ts';
 
     function readOrders(): Order[] {
       try {
-        const raw = localStorage.getItem(ORDERS_KEY);
+        const raw = safeLocalStorage.getItem(ORDERS_KEY);
         if (!raw) {
-          localStorage.setItem(ORDERS_KEY, JSON.stringify(seedOrders));
+          safeLocalStorage.setItem(ORDERS_KEY, JSON.stringify(seedOrders));
           return seedOrders;
         }
         return JSON.parse(raw) as Order[];
@@ -55,7 +56,7 @@ import { getVehicleById } from './vehicles.ts';
     }
 
     function writeOrders(list: Order[]) {
-      localStorage.setItem(ORDERS_KEY, JSON.stringify(list));
+      safeLocalStorage.setItem(ORDERS_KEY, JSON.stringify(list));
     }
 
     export function getOrders(): Order[] {

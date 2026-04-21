@@ -11,6 +11,10 @@ export type Vehicle = {
       rating: number; // 0-5 scale
     };
 
+    import { safeLocalStorage } from '../utils/localStorage';
+
+    import { safeLocalStorage } from '../utils/localStorage';
+
     const VEHICLES_KEY = 'ancar_vehicles_v1';
 
     const seedVehicles: Vehicle[] = [
@@ -102,9 +106,9 @@ export type Vehicle = {
 
     function readStorage(): Vehicle[] {
       try {
-        const raw = localStorage.getItem(VEHICLES_KEY);
+        const raw = safeLocalStorage.getItem(VEHICLES_KEY);
         if (!raw) {
-          localStorage.setItem(VEHICLES_KEY, JSON.stringify(seedVehicles));
+          safeLocalStorage.setItem(VEHICLES_KEY, JSON.stringify(seedVehicles));
           return seedVehicles;
         }
         return JSON.parse(raw) as Vehicle[];
@@ -114,7 +118,7 @@ export type Vehicle = {
     }
 
     function writeStorage(list: Vehicle[]) {
-      localStorage.setItem(VEHICLES_KEY, JSON.stringify(list));
+      safeLocalStorage.setItem(VEHICLES_KEY, JSON.stringify(list));
     }
 
     export function getVehicles(): Vehicle[] {

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { safeLocalStorage } from '../utils/localStorage';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -14,7 +15,7 @@ const THEME_STORAGE_KEY = 'ancar_theme_v1';
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') return 'light';
-    const saved = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
+    const saved = safeLocalStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
     if (saved === 'dark' || saved === 'light') return saved;
     return 'light';
   });
@@ -27,7 +28,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       root.classList.remove('dark');
     }
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    safeLocalStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
   const toggleTheme = () => setTheme((current) => (current === 'dark' ? 'light' : 'dark'));

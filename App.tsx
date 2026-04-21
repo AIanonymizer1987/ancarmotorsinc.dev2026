@@ -27,6 +27,7 @@ import Admin from './src/pages/Admin';
 import AdminAccount from './src/pages/AdminAccount';
 import VerifyEmail from './src/pages/VerifyEmail';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { safeLocalStorage } from './src/utils/localStorage';
 
 declare global {
   interface Window {
@@ -46,7 +47,7 @@ function AnalyticsTracker() {
   }, [location]);
 
   useEffect(() => {
-    localStorage.setItem('lastPage', location.pathname);
+    safeLocalStorage.setItem('lastPage', location.pathname);
   }, [location]);
 
   return null;
@@ -57,11 +58,15 @@ function PagePersistence() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const savedPage = localStorage.getItem('lastPage');
-    if (savedPage && location.pathname === '/' && savedPage !== '/') {
-      navigate(savedPage);
+    // Only redirect on initial load when at home page
+    const savedPage = safeLocalStorage.getItem('lastPage');
+    if (savedPage && location.pathname === '/' && savedPage !== '/' && location.key === 'default') {
+      // Use setTimeout to avoid navigation conflicts during initial render
+      setTimeout(() => {
+        navigate(savedPage, { replace: true });
+      }, 0);
     }
-  }, [location, navigate]);
+  }, []); // Only run once on mount
 
   return null;
 }

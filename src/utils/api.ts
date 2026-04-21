@@ -1,4 +1,5 @@
 import type { Vehicle, User, Order } from '../types';
+import { safeLocalStorage } from './localStorage';
 
 const API_URL = '/api/neon';
 
@@ -6,7 +7,7 @@ const getHeaders = () => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  const token = typeof window !== 'undefined' ? localStorage.getItem('ancar_auth_state_v1') : null;
+  const token = safeLocalStorage.getItem('ancar_auth_state_v1');
   if (token) {
     try {
       const authState = JSON.parse(token);
