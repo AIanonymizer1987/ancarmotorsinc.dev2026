@@ -44,7 +44,7 @@ export default function MyActivities() {
   const [orderPage, setOrderPage] = useState(1);
   const [testDrivePage, setTestDrivePage] = useState(1);
   const [ticketPage, setTicketPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 3;
   const { confirmState, openConfirm, closeConfirm, handleConfirm } = useConfirmDialog();
 
   useEffect(() => {
@@ -298,12 +298,28 @@ export default function MyActivities() {
                               <p className="font-semibold text-gray-900">{order.product_color}</p>
                             </div>
                             <div>
-                              <p className="text-gray-600">Quantity</p>
-                              <p className="font-semibold text-gray-900">{order.product_quantity}</p>
+                              <p className="text-gray-600">Transmission</p>
+                              <p className="font-semibold text-gray-900">{order.product_transmission}</p>
                             </div>
                             <div>
-                              <p className="text-gray-600">Order Status</p>
-                              <p className="font-semibold text-gray-900">{order.product_status}</p>
+                              <p className="text-gray-600">Payload Capacity</p>
+                              <p className="font-semibold text-gray-900">{order.product_pl_capacity || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Towing Capacity</p>
+                              <p className="font-semibold text-gray-900">{order.product_tw_capacity || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Shipping</p>
+                              <p className="font-semibold text-gray-900">{order.product_shipping_option}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Order Type</p>
+                              <p className="font-semibold text-gray-900">{order.order_type ? order.order_type.charAt(0).toUpperCase() + order.order_type.slice(1) : 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Quantity</p>
+                              <p className="font-semibold text-gray-900">{order.product_quantity}</p>
                             </div>
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4">
@@ -324,7 +340,7 @@ export default function MyActivities() {
                           </div>
                         </div>
 
-                        {order.product_status !== 'completed' && order.product_status !== 'cancelled' && (
+                        {order.product_status !== 'completed' && order.product_status !== 'cancelled' && order.product_status !== 'processing' && order.product_status !== 'out for delivery' && (
                           <button
                             onClick={() => handleCancelOrder(order)}
                             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition text-sm font-medium"
@@ -340,14 +356,14 @@ export default function MyActivities() {
                 {totalPages > 1 && (
                   <div className="flex justify-center items-center gap-2 mt-6">
                     <button
-                      onClick={() => handlePageChange(1)}
+                      onClick={() => handlePageChange(1, 'order')}
                       disabled={orderPage === 1}
                       className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       First
                     </button>
                     <button
-                      onClick={() => handlePageChange(orderPage - 1)}
+                      onClick={() => handlePageChange(orderPage - 1, 'order')}
                       disabled={orderPage === 1}
                       className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -356,7 +372,7 @@ export default function MyActivities() {
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <button
                         key={page}
-                        onClick={() => handlePageChange(page)}
+                        onClick={() => handlePageChange(page, 'order')}
                         className={`px-3 py-2 rounded-md ${
                           orderPage === page
                             ? 'bg-blue-600 text-white'
@@ -367,14 +383,14 @@ export default function MyActivities() {
                       </button>
                     ))}
                     <button
-                      onClick={() => handlePageChange(orderPage + 1)}
+                      onClick={() => handlePageChange(orderPage + 1, 'order')}
                       disabled={orderPage === totalPages}
                       className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Next
                     </button>
                     <button
-                      onClick={() => handlePageChange(totalPages)}
+                      onClick={() => handlePageChange(totalPages, 'order')}
                       disabled={orderPage === totalPages}
                       className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >

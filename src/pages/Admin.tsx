@@ -2,14 +2,14 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
-import { getVehicles, getUsers, getOrders, getSuppliers, addVehicle, updateVehicle, deleteVehicle, updateOrder, addSupplier, deleteSupplier, getTickets, updateTicket, updateUserVerificationStatus, exportTableData, importTableData, getDatabaseHealth } from '../utils/api';
+import { getVehicles, getUsers, getOrders, getSuppliers, addVehicle, updateVehicle, deleteVehicle, updateOrder, addSupplier, deleteSupplier, getTickets, updateTicket, updateUserVerificationStatus, exportTableData, importTableData, getDatabaseHealth, getTestDrives, updateTestDrive } from '../utils/api';
 import { sendOrderStatusEmail, sendTicketResponseEmail } from '../utils/email';
-import type { Vehicle, Order, User } from '../types';
+import type { Vehicle, Order, User, TestDrive } from '../types';
 import { toast } from 'react-toastify';
 import { PieChart, Pie, Cell, Tooltip, BarChart, Bar, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Truck, Package } from 'lucide-react';
 
-type ViewType = 'dashboard' | 'vehicles' | 'orders' | 'users' | 'suppliers' | 'analytics' | 'customer-service' | 'database-management';
+type ViewType = 'dashboard' | 'vehicles' | 'orders' | 'users' | 'suppliers' | 'analytics' | 'customer-service' | 'database-management' | 'test-drives';
 
 type VehicleFormState = Omit<Vehicle, 'vehicle_id' | 'vehicle_color' | 'vehicle_transmission' | 'vehicle_lifting_capacity' | 'vehicle_towing_capacity' | 'vehicle_payload_capacity'> & {
   vehicle_color: string[];
@@ -28,6 +28,7 @@ const Admin: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [testDrives, setTestDrives] = useState<TestDrive[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbTable, setDbTable] = useState('users');
   const [dbImportMode, setDbImportMode] = useState<'insert' | 'upsert'>('insert');
@@ -76,13 +77,14 @@ const Admin: React.FC = () => {
   const [supplierSearch, setSupplierSearch] = useState('');
   const [supplierPage, setSupplierPage] = useState(1);
   const suppliersPerPage = 5;
-  const [newSupplier, setNewSupplier] = useState({ name: '', email: '', contact_person: '', contact_phone: '', address: '' });
+  const [newSupplier, setNewSupplier] = useState({ name: '', contact_email: '', contact_person: '', contact_phone: '', address: '' });
   const [ticketSearch, setTicketSearch] = useState('');
   const [ticketStatusFilter, setTicketStatusFilter] = useState('all');
   const [ticketPage, setTicketPage] = useState(1);
   const ticketsPerPage = 5;
   const [analyticsRevenueView, setAnalyticsRevenueView] = useState<'monthly' | 'annually'>('monthly');
   const [showLowStockNotification, setShowLowStockNotification] = useState(false);
+  const [showVehicleDialog, setShowVehicleDialog] = useState(false);
 
   const isAdmin = user?.role === 'admin';
 
@@ -100,18 +102,27 @@ const Admin: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [vehiclesData, ordersData, usersData, suppliersData, ticketsData] = await Promise.all([
+      const [vehiclesData, ordersData, usersData, suppliersData, ticketsData, testDrivesData] = await Promise.all([
         getVehicles(),
         getOrders(),
         getUsers(),
         getSuppliers(),
         getTickets(),
+        getTestDrives(),
       ]);
       setVehicles(vehiclesData);
       setOrders(ordersData);
       setUsers(usersData);
       setSuppliers(suppliersData);
       setTickets(ticketsData);
+      setTestDrives(testDrivesData.map(testDrive => {
+        const vehicle = vehiclesData.find(v => v.vehicle_id === testDrive.vehicle_id);
+        return {
+          ...testDrive,
+          vehicle_name: vehicle?.vehicle_name || 'Unknown Vehicle',
+          vehicle_model: vehicle?.vehicle_model || '',
+        };
+      }));
     } catch {
       toast.error('Failed to load data');
     } finally {
@@ -426,12 +437,22 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleUpdateTestDriveStatus = async (id: number, status: string) => {
+    try {
+      await updateTestDrive(id, { status });
+      setTestDrives(testDrives.map(td => td.id === id ? { ...td, status } : td));
+      toast.success(`Test drive ${status}`);
+    } catch {
+      toast.error('Failed to update test drive status');
+    }
+  };
+
   const handleRequestRestock = (supplier: any) => {
     toast.info(`Restock request sent to ${supplier.name}.`);
   };
 
   const handleEmailSupplier = (supplier: any) => {
-    const mailTo = `mailto:${supplier.email}?subject=Restock%20Request&body=Hello%20${encodeURIComponent(
+    const mailTo = `mailto:${supplier.contact_email}?subject=Restock%20Request&body=Hello%20${encodeURIComponent(
       supplier.contact_person || supplier.name
     )},%0D%0A%0D%0AWe%20would%20like%20to%20request%20a%20stock%20replenishment.%20Please%20review%20our%20inventory%20levels.%0D%0A%0D%0AThanks.`;
     window.location.href = mailTo;
@@ -771,6 +792,12 @@ const Admin: React.FC = () => {
                   className={`w-full text-left px-3 py-2 rounded ${currentView === 'customer-service' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
                 >
                   Customer Service
+                </button>
+                <button
+                  onClick={() => setCurrentView('test-drives')}
+                  className={`w-full text-left px-3 py-2 rounded ${currentView === 'test-drives' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+                >
+                  Test Drives
                 </button>
               </nav>
             </div>
@@ -1346,304 +1373,328 @@ const Admin: React.FC = () => {
                     <h1 className="text-2xl font-bold">Inventory Management</h1>
                     <button
                       type="button"
-                      onClick={resetVehicleForm}
-                      className="px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200 text-sm"
+                      onClick={() => {
+                        resetVehicleForm();
+                        setShowVehicleDialog(true);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
-                      {editingVehicle ? 'New Vehicle' : 'Clear Form'}
+                      Add Vehicle
                     </button>
                   </div>
 
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Vehicle Name</label>
-                          <input
-                            value={vehicleForm.vehicle_name}
-                            onChange={(e) => setVehicleField('vehicle_name', e.target.value)}
-                            className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Vehicle title"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Make</label>
-                          <input
-                            value={vehicleForm.vehicle_make}
-                            onChange={(e) => setVehicleField('vehicle_make', e.target.value)}
-                            className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Dodge, Ford, Toyota"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Model</label>
-                          <input
-                            value={vehicleForm.vehicle_model}
-                            onChange={(e) => setVehicleField('vehicle_model', e.target.value)}
-                            className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Model name"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Year</label>
-                          <input
-                            value={vehicleForm.vehicle_year}
-                            onChange={(e) => setVehicleField('vehicle_year', e.target.value)}
-                            className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="2024"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Price</label>
-                          <input
-                            type="number"
-                            value={vehicleForm.vehicle_base_price}
-                            onChange={(e) => setVehicleField('vehicle_base_price', Number(e.target.value))}
-                            className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="29999"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Stock Quantity</label>
-                          <input
-                            type="number"
-                            value={vehicleForm.stock_quantity}
-                            onChange={(e) => setVehicleField('stock_quantity', Number(e.target.value))}
-                            className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="12"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Image URL</label>
-                          <input
-                            value={vehicleForm.vehicle_img_url}
-                            onChange={(e) => setVehicleField('vehicle_img_url', e.target.value)}
-                            className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="https://..."
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Upload Image</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleSelectImage}
-                            className="mt-1 block w-full text-sm text-gray-700"
-                          />
-                          {uploadingImage && <p className="text-sm text-blue-600 mt-2">Uploading image...</p>}
-                          {imageUploadError && <p className="text-sm text-red-600 mt-2">{imageUploadError}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Vehicle Description</label>
-                          <textarea
-                            value={vehicleForm.vehicle_description}
-                            onChange={(e) => setVehicleField('vehicle_description', e.target.value)}
-                            className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                            rows={4}
-                            placeholder="Describe the vehicle..."
-                          />
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Fuel Type</label>
-                            <input
-                              value={vehicleForm.vehicle_fuel_type}
-                              onChange={(e) => setVehicleField('vehicle_fuel_type', e.target.value)}
-                              className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="Gasoline, Diesel"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Fuel Economy</label>
-                            <input
-                              value={vehicleForm.vehicle_fuel_economy}
-                              onChange={(e) => setVehicleField('vehicle_fuel_economy', e.target.value)}
-                              className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="20 MPG"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Transmission Options</label>
-                            <div className="flex gap-2 mt-2">
-                              <input
-                                value={newTransmission}
-                                onChange={(e) => setNewTransmission(e.target.value)}
-                                className="flex-1 border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Automatic"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => addVehicleSpec('vehicle_transmission', newTransmission, () => setNewTransmission(''))}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                              >
-                                Add
-                              </button>
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {vehicleForm.vehicle_transmission.map((item, index) => (
-                                <button
-                                  key={`transmission-${index}`}
-                                  type="button"
-                                  onClick={() => removeVehicleSpec('vehicle_transmission', index)}
-                                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
-                                >
-                                  {item}
-                                  <span aria-hidden="true">×</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Color Options</label>
-                            <div className="flex gap-2 mt-2">
-                              <input
-                                value={newColor}
-                                onChange={(e) => setNewColor(e.target.value)}
-                                className="flex-1 border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Silver"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => addVehicleSpec('vehicle_color', newColor, () => setNewColor(''))}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                              >
-                                Add
-                              </button>
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {vehicleForm.vehicle_color.map((item, index) => (
-                                <button
-                                  key={`color-${index}`}
-                                  type="button"
-                                  onClick={() => removeVehicleSpec('vehicle_color', index)}
-                                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
-                                >
-                                  {item}
-                                  <span aria-hidden="true">×</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Lifting Capacity Options</label>
-                            <div className="flex gap-2 mt-2">
-                              <input
-                                value={newLiftingCapacity}
-                                onChange={(e) => setNewLiftingCapacity(e.target.value)}
-                                className="flex-1 border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="2,000 lbs"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => addVehicleSpec('vehicle_lifting_capacity', newLiftingCapacity, () => setNewLiftingCapacity(''))}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                              >
-                                Add
-                              </button>
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {vehicleForm.vehicle_lifting_capacity.map((item, index) => (
-                                <button
-                                  key={`lifting-${index}`}
-                                  type="button"
-                                  onClick={() => removeVehicleSpec('vehicle_lifting_capacity', index)}
-                                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
-                                >
-                                  {item}
-                                  <span aria-hidden="true">×</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Payload Capacity Options</label>
-                            <div className="flex gap-2 mt-2">
-                              <input
-                                value={newPayloadCapacity}
-                                onChange={(e) => setNewPayloadCapacity(e.target.value)}
-                                className="flex-1 border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="1,500 lbs"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => addVehicleSpec('vehicle_payload_capacity', newPayloadCapacity, () => setNewPayloadCapacity(''))}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                              >
-                                Add
-                              </button>
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {vehicleForm.vehicle_payload_capacity.map((item, index) => (
-                                <button
-                                  key={`payload-${index}`}
-                                  type="button"
-                                  onClick={() => removeVehicleSpec('vehicle_payload_capacity', index)}
-                                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
-                                >
-                                  {item}
-                                  <span aria-hidden="true">×</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Towing Capacity Options</label>
-                          <div className="flex gap-2 mt-2">
-                            <input
-                              value={newTowingCapacity}
-                              onChange={(e) => setNewTowingCapacity(e.target.value)}
-                              className="flex-1 border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="7,500 lbs"
-                            />
+                  {showVehicleDialog && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                      <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                          <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold">{editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}</h2>
                             <button
-                              type="button"
-                              onClick={() => addVehicleSpec('vehicle_towing_capacity', newTowingCapacity, () => setNewTowingCapacity(''))}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                              onClick={() => setShowVehicleDialog(false)}
+                              className="text-gray-400 hover:text-gray-600"
                             >
-                              Add
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
                             </button>
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {vehicleForm.vehicle_towing_capacity.map((item, index) => (
-                              <button
-                                key={`towing-${index}`}
-                                type="button"
-                                onClick={() => removeVehicleSpec('vehicle_towing_capacity', index)}
-                                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
-                              >
-                                {item}
-                                <span aria-hidden="true">×</span>
-                              </button>
-                            ))}
+
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Vehicle Name</label>
+                                <input
+                                  value={vehicleForm.vehicle_name}
+                                  onChange={(e) => setVehicleField('vehicle_name', e.target.value)}
+                                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Vehicle title"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Make</label>
+                                <input
+                                  value={vehicleForm.vehicle_make}
+                                  onChange={(e) => setVehicleField('vehicle_make', e.target.value)}
+                                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Dodge, Ford, Toyota"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Model</label>
+                                <input
+                                  value={vehicleForm.vehicle_model}
+                                  onChange={(e) => setVehicleField('vehicle_model', e.target.value)}
+                                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Model name"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Year</label>
+                                <input
+                                  value={vehicleForm.vehicle_year}
+                                  onChange={(e) => setVehicleField('vehicle_year', e.target.value)}
+                                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="2024"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Price</label>
+                                <input
+                                  type="number"
+                                  value={vehicleForm.vehicle_base_price}
+                                  onChange={(e) => setVehicleField('vehicle_base_price', Number(e.target.value))}
+                                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="29999"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Stock Quantity</label>
+                                <input
+                                  type="number"
+                                  value={vehicleForm.stock_quantity}
+                                  onChange={(e) => setVehicleField('stock_quantity', Number(e.target.value))}
+                                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="12"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Image URL</label>
+                                <input
+                                  value={vehicleForm.vehicle_img_url}
+                                  onChange={(e) => setVehicleField('vehicle_img_url', e.target.value)}
+                                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="https://..."
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Upload Image</label>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleSelectImage}
+                                  className="mt-1 block w-full text-sm text-gray-700"
+                                />
+                                {uploadingImage && <p className="text-sm text-blue-600 mt-2">Uploading image...</p>}
+                                {imageUploadError && <p className="text-sm text-red-600 mt-2">{imageUploadError}</p>}
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Vehicle Description</label>
+                                <textarea
+                                  value={vehicleForm.vehicle_description}
+                                  onChange={(e) => setVehicleField('vehicle_description', e.target.value)}
+                                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                  rows={4}
+                                  placeholder="Describe the vehicle..."
+                                />
+                              </div>
+                              <div className="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">Fuel Type</label>
+                                  <input
+                                    value={vehicleForm.vehicle_fuel_type}
+                                    onChange={(e) => setVehicleField('vehicle_fuel_type', e.target.value)}
+                                    className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Gasoline, Diesel"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">Fuel Economy</label>
+                                  <input
+                                    value={vehicleForm.vehicle_fuel_economy}
+                                    onChange={(e) => setVehicleField('vehicle_fuel_economy', e.target.value)}
+                                    className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="20 MPG"
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">Transmission Options</label>
+                                  <div className="flex gap-2 mt-2">
+                                    <input
+                                      value={newTransmission}
+                                      onChange={(e) => setNewTransmission(e.target.value)}
+                                      className="flex-1 border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                      placeholder="Automatic"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => addVehicleSpec('vehicle_transmission', newTransmission, () => setNewTransmission(''))}
+                                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {vehicleForm.vehicle_transmission.map((item, index) => (
+                                      <button
+                                        key={`transmission-${index}`}
+                                        type="button"
+                                        onClick={() => removeVehicleSpec('vehicle_transmission', index)}
+                                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
+                                      >
+                                        {item}
+                                        <span aria-hidden="true">×</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">Color Options</label>
+                                  <div className="flex gap-2 mt-2">
+                                    <input
+                                      value={newColor}
+                                      onChange={(e) => setNewColor(e.target.value)}
+                                      className="flex-1 border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                      placeholder="Silver"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => addVehicleSpec('vehicle_color', newColor, () => setNewColor(''))}
+                                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {vehicleForm.vehicle_color.map((item, index) => (
+                                      <button
+                                        key={`color-${index}`}
+                                        type="button"
+                                        onClick={() => removeVehicleSpec('vehicle_color', index)}
+                                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
+                                      >
+                                        {item}
+                                        <span aria-hidden="true">×</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">Lifting Capacity Options</label>
+                                  <div className="flex gap-2 mt-2">
+                                    <input
+                                      value={newLiftingCapacity}
+                                      onChange={(e) => setNewLiftingCapacity(e.target.value)}
+                                      className="flex-1 border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                      placeholder="2,000 lbs"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => addVehicleSpec('vehicle_lifting_capacity', newLiftingCapacity, () => setNewLiftingCapacity(''))}
+                                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {vehicleForm.vehicle_lifting_capacity.map((item, index) => (
+                                      <button
+                                        key={`lifting-${index}`}
+                                        type="button"
+                                        onClick={() => removeVehicleSpec('vehicle_lifting_capacity', index)}
+                                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
+                                      >
+                                        {item}
+                                        <span aria-hidden="true">×</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">Payload Capacity Options</label>
+                                  <div className="flex gap-2 mt-2">
+                                    <input
+                                      value={newPayloadCapacity}
+                                      onChange={(e) => setNewPayloadCapacity(e.target.value)}
+                                      className="flex-1 border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                      placeholder="1,500 lbs"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => addVehicleSpec('vehicle_payload_capacity', newPayloadCapacity, () => setNewPayloadCapacity(''))}
+                                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {vehicleForm.vehicle_payload_capacity.map((item, index) => (
+                                      <button
+                                        key={`payload-${index}`}
+                                        type="button"
+                                        onClick={() => removeVehicleSpec('vehicle_payload_capacity', index)}
+                                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
+                                      >
+                                        {item}
+                                        <span aria-hidden="true">×</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Towing Capacity Options</label>
+                                <div className="flex gap-2 mt-2">
+                                  <input
+                                    value={newTowingCapacity}
+                                    onChange={(e) => setNewTowingCapacity(e.target.value)}
+                                    className="flex-1 border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="7,500 lbs"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => addVehicleSpec('vehicle_towing_capacity', newTowingCapacity, () => setNewTowingCapacity(''))}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {vehicleForm.vehicle_towing_capacity.map((item, index) => (
+                                    <button
+                                      key={`towing-${index}`}
+                                      type="button"
+                                      onClick={() => removeVehicleSpec('vehicle_towing_capacity', index)}
+                                      className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-700 hover:bg-gray-200"
+                                    >
+                                      {item}
+                                      <span aria-hidden="true">×</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-6 flex gap-3 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setShowVehicleDialog(false)}
+                              className="px-6 py-3 bg-gray-100 rounded-md hover:bg-gray-200"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleSaveVehicle();
+                                setShowVehicleDialog(false);
+                              }}
+                              className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            >
+                              {editingVehicle ? 'Update Vehicle' : 'Add Vehicle'}
+                            </button>
                           </div>
                         </div>
                       </div>
                     </div>
-
-                    <div className="mt-4 flex gap-3">
-                      <button
-                        type="button"
-                        onClick={handleSaveVehicle}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                      >
-                        {editingVehicle ? 'Update Vehicle' : 'Add Vehicle'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={resetVehicleForm}
-                        className="px-6 py-3 bg-gray-100 rounded-md hover:bg-gray-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
+                  )}
 
                   <div className="bg-white rounded-lg shadow overflow-hidden">
                     <table className="w-full">
@@ -1685,7 +1736,10 @@ const Admin: React.FC = () => {
                             <td className="px-4 py-2">{vehicle.stock_quantity}</td>
                             <td className="px-4 py-2 space-x-2">
                               <button
-                                onClick={() => handleEditVehicle(vehicle)}
+                                onClick={() => {
+                                  handleEditVehicle(vehicle);
+                                  setShowVehicleDialog(true);
+                                }}
                                 className="text-blue-600 hover:text-blue-800"
                               >
                                 Edit
@@ -1745,8 +1799,8 @@ const Admin: React.FC = () => {
                     />
                     <input
                       type="email"
-                      value={newSupplier.email}
-                      onChange={(e) => setNewSupplier((prev) => ({ ...prev, email: e.target.value }))}
+                      value={newSupplier.contact_email}
+                      onChange={(e) => setNewSupplier((prev) => ({ ...prev, contact_email: e.target.value }))}
                       placeholder="Supplier Email"
                       className="w-full border rounded px-3 py-2"
                     />
@@ -1774,14 +1828,14 @@ const Admin: React.FC = () => {
                     <button
                       type="button"
                       onClick={async () => {
-                        if (!newSupplier.name || !newSupplier.email) {
+                        if (!newSupplier.name || !newSupplier.contact_email) {
                           toast.error('Supplier name and email are required');
                           return;
                         }
                         try {
                           const created = await addSupplier(newSupplier);
                           setSuppliers((current) => [created, ...current]);
-                          setNewSupplier({ name: '', email: '', contact_person: '', contact_phone: '', address: '' });
+                          setNewSupplier({ name: '', contact_email: '', contact_person: '', contact_phone: '', address: '' });
                           toast.success('Supplier added successfully');
                         } catch (error: any) {
                           toast.error(error?.message || 'Failed to add supplier');
@@ -1811,7 +1865,7 @@ const Admin: React.FC = () => {
                         <tr key={supplier.id} className="border-t">
                           <td className="px-4 py-2">{supplier.name}</td>
                           <td className="px-4 py-2">{supplier.contact_person || '—'}</td>
-                          <td className="px-4 py-2">{supplier.email}</td>
+                          <td className="px-4 py-2">{supplier.contact_email}</td>
                           <td className="px-4 py-2">{supplier.contact_phone || '—'}</td>
                           <td className="px-4 py-2">{supplier.address || '—'}</td>
                           <td className="px-4 py-2 space-x-2">
@@ -2080,6 +2134,153 @@ const Admin: React.FC = () => {
                       type="button"
                       disabled={ticketPage >= Math.ceil(filteredTickets.length / ticketsPerPage)}
                       onClick={() => setTicketPage(Math.max(1, Math.ceil(filteredTickets.length / ticketsPerPage)))}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      Last
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {currentView === 'test-drives' && (
+              <div className="space-y-6">
+                <h1 className="text-2xl font-bold">Test Drive Requests</h1>
+
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <div className="p-4 border-b">
+                    <div className="flex gap-4 items-center">
+                      <input
+                        type="text"
+                        placeholder="Search test drives..."
+                        value={ticketSearch}
+                        onChange={(e) => setTicketSearch(e.target.value)}
+                        className="flex-1 px-3 py-2 border rounded-md"
+                      />
+                      <select
+                        value={ticketStatusFilter}
+                        onChange={(e) => setTicketStatusFilter(e.target.value)}
+                        className="px-3 py-2 border rounded-md"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left">Customer</th>
+                        <th className="px-4 py-2 text-left">Vehicle</th>
+                        <th className="px-4 py-2 text-left">Date & Time</th>
+                        <th className="px-4 py-2 text-left">Status</th>
+                        <th className="px-4 py-2 text-left">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {testDrives
+                        .filter(testDrive => {
+                          const matchesSearch = ticketSearch === '' ||
+                            testDrive.username?.toLowerCase().includes(ticketSearch.toLowerCase()) ||
+                            testDrive.vehicle_name?.toLowerCase().includes(ticketSearch.toLowerCase());
+                          const matchesStatus = ticketStatusFilter === 'all' || testDrive.status === ticketStatusFilter;
+                          return matchesSearch && matchesStatus;
+                        })
+                        .slice((ticketPage - 1) * ticketsPerPage, ticketPage * ticketsPerPage)
+                        .map(testDrive => (
+                          <tr key={testDrive.id} className="border-t">
+                            <td className="px-4 py-2">
+                              <div>
+                                <div className="font-medium">{testDrive.username}</div>
+                                <div className="text-sm text-gray-500">{testDrive.user_email}</div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2">
+                              <div>
+                                <div className="font-medium">{testDrive.vehicle_name}</div>
+                                <div className="text-sm text-gray-500">{testDrive.vehicle_model}</div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2">
+                              <div>
+                                <div>{new Date(testDrive.requested_date).toLocaleDateString()}</div>
+                                <div className="text-sm text-gray-500">{testDrive.requested_time}</div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                testDrive.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                testDrive.status === 'approved' ? 'bg-blue-100 text-blue-800' :
+                                testDrive.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                testDrive.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {testDrive.status?.charAt(0).toUpperCase() + testDrive.status?.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 space-x-2">
+                              {testDrive.status === 'pending' && (
+                                <>
+                                  <button
+                                    onClick={() => handleUpdateTestDriveStatus(testDrive.id, 'approved')}
+                                    className="text-green-600 hover:text-green-800 text-sm"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleUpdateTestDriveStatus(testDrive.id, 'cancelled')}
+                                    className="text-red-600 hover:text-red-800 text-sm"
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              )}
+                              {testDrive.status === 'approved' && (
+                                <button
+                                  onClick={() => handleUpdateTestDriveStatus(testDrive.id, 'completed')}
+                                  className="text-blue-600 hover:text-blue-800 text-sm"
+                                >
+                                  Mark Complete
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+
+                  {testDrives.length === 0 && (
+                    <div className="p-8 text-center text-gray-500">
+                      No test drive requests found.
+                    </div>
+                  )}
+
+                  <div className="p-4 border-t flex items-center justify-between">
+                    <button
+                      type="button"
+                      disabled={ticketPage <= 1}
+                      onClick={() => setTicketPage((page) => Math.max(page - 1, 1))}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span>Page {ticketPage} of {Math.max(1, Math.ceil(testDrives.length / ticketsPerPage))}</span>
+                    <button
+                      type="button"
+                      disabled={ticketPage >= Math.ceil(testDrives.length / ticketsPerPage)}
+                      onClick={() => setTicketPage((page) => Math.min(page + 1, Math.ceil(testDrives.length / ticketsPerPage)))}
+                      className="px-3 py-2 border rounded disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                    <button
+                      type="button"
+                      disabled={ticketPage >= Math.ceil(testDrives.length / ticketsPerPage)}
+                      onClick={() => setTicketPage(Math.max(1, Math.ceil(testDrives.length / ticketsPerPage)))}
                       className="px-3 py-2 border rounded disabled:opacity-50"
                     >
                       Last

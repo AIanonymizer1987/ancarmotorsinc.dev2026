@@ -67,7 +67,10 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
     liftingCapacity: '',
     towingCapacity: '',
     shipping_option: 'standard',
+    orderType: 'pickup',
     payment: 'cash',
+    cashPaymentMethod: 'branch',
+    installmentPaymentMethod: 'bank',
     installmentTerm: '12',
     repaymentFrequency: 'monthly',
     downPaymentPercent: '10',
@@ -120,6 +123,17 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
     };
     loadUserData();
   }, [user]);
+
+  useEffect(() => {
+    const savedData = localStorage.getItem('orderFormData');
+    if (savedData) {
+      setFormData(JSON.parse(savedData));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('orderFormData', JSON.stringify(formData));
+  }, [formData]);
 
   const vehicleColors = vehicle ? parseOptions(vehicle.vehicle_color) : [];
   const payloadOptions = vehicle ? parseOptions(vehicle.vehicle_payload_capacity) : [];
@@ -219,7 +233,9 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
 
     setSubmitting(true);
     try {
+      const shippingLabel = formData.shipping_option === 'standard' ? 'Standard Shipping (4-6 days)' : 'Express Shipping (1-3 days)';
       const order = {
+        user_id: user.id,
         order_code: `ORDER_${Date.now()}`,
         product_name: vehicle.vehicle_name,
         product_img_url: vehicle.vehicle_img_url,
@@ -233,11 +249,15 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
         product_total_price: discountedSubtotal,
         discount_amount: discountAmount,
         voucher_code: useVoucherBalance ? 'CLAIMED_VOUCHERS' : undefined,
-        product_shipping_option: formData.shipping_option,
+        product_shipping_option: shippingLabel,
         product_payment: formData.payment,
         product_status: 'pending',
         product_payment_status: 'pending',
         payment_reference: formData.payment === 'cash' ? null : `REF-${Date.now()}`,
+        customer_name: user.name,
+        customer_email: user.email,
+        customer_address: user.address,
+        customer_phone: user.phone,
         product_transaction: JSON.stringify({
           paymentDetails: {
             subtotal: discountedSubtotal,
@@ -258,13 +278,14 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
                   termMonths: installmentMonths,
                   repaymentFrequency: formData.repaymentFrequency,
                   downPaymentPercent: formData.downPaymentPercent,
+                  paymentMethod: formData.installmentPaymentMethod,
                 }
               : null,
           },
         }),
-        delivery_address: user.address || '',
-        user_id: user.id.toString(),
-        username: user.name,
+        delivery_address: formData.orderType === 'delivery' ? user.address || '' : '',
+        order_type: formData.orderType,
+        cash_payment_method: formData.payment === 'cash' ? formData.cashPaymentMethod : null,
       };
 
       const createdOrder = await addOrder(order);
@@ -442,8 +463,20 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
               onChange={(e) => setFormData({ ...formData, shipping_option: e.target.value })}
               className="w-full border rounded-md px-3 py-2"
             >
-              <option value="standard">Standard Shipping</option>
-              <option value="express">Express Shipping (+{formatCurrency(5000)})</option>
+              <option value="standard">Standard Shipping (4-6 days)</option>
+              <option value="express">Express Shipping (1-3 days) (+{formatCurrency(5000)})</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Order Type</label>
+            <select
+              value={formData.orderType}
+              onChange={(e) => setFormData({ ...formData, orderType: e.target.value })}
+              className="w-full border rounded-md px-3 py-2"
+            >
+              <option value="pickup">Pick Up</option>
+              <option value="delivery">Delivery</option>
             </select>
           </div>
 
@@ -459,6 +492,34 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
               <option value="installment">Installment</option>
             </select>
           </div>
+
+          {formData.payment === 'cash' && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Cash Payment Method</label>
+              <select
+                value={formData.cashPaymentMethod}
+                onChange={(e) => setFormData({ ...formData, cashPaymentMethod: e.target.value })}
+                className="w-full border rounded-md px-3 py-2"
+              >
+                <option value="branch">Pay at Branch</option>
+                <option value="cod">Cash on Delivery</option>
+              </select>
+            </div>
+          )}
+
+          {formData.payment === 'installment' && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Installment Payment Method</label>
+              <select
+                value={formData.installmentPaymentMethod}
+                onChange={(e) => setFormData({ ...formData, installmentPaymentMethod: e.target.value })}
+                className="w-full border rounded-md px-3 py-2"
+              >
+                <option value="bank">Bank payment</option>
+                <option value="ewallet">E-wallet payment</option>
+              </select>
+            </div>
+          )}
 
           {voucherBalance > 0 && (
             <div className="rounded-lg border border-green-200 bg-green-50 p-4">

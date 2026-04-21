@@ -61,6 +61,8 @@ export interface Order {
   payment_reference?: string;
   product_transaction: string;
   delivery_address?: string;
+  order_type?: string;
+  cash_payment_method?: string;
   order_timestamp: string;
   user_id: string;
   username: string;

@@ -3,7 +3,7 @@ import '@radix-ui/themes/styles.css';
 import { Theme } from '@radix-ui/themes';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 
 import Home from './src/pages/Home';
 import { ThemeProvider } from './src/context/ThemeContext';
@@ -26,6 +26,7 @@ import Employee from './src/pages/Employee';
 import Admin from './src/pages/Admin';
 import AdminAccount from './src/pages/AdminAccount';
 import VerifyEmail from './src/pages/VerifyEmail';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 declare global {
   interface Window {
@@ -44,16 +45,36 @@ function AnalyticsTracker() {
     });
   }, [location]);
 
+  useEffect(() => {
+    localStorage.setItem('lastPage', location.pathname);
+  }, [location]);
+
+  return null;
+}
+
+function PagePersistence() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedPage = localStorage.getItem('lastPage');
+    if (savedPage && location.pathname === '/' && savedPage !== '/') {
+      navigate(savedPage);
+    }
+  }, [location, navigate]);
+
   return null;
 }
 
 const App: React.FC = () => {
   return (
+    <ErrorBoundary>
     <ThemeProvider>
       <Theme appearance="inherit" radius="large" scaling="100%">
         <AuthProvider>
           <Router>
           <AnalyticsTracker />
+          <PagePersistence />
             <main className="min-h-screen font-sans">
               <Routes>
               <Route path="/" element={<Home />} />
@@ -91,6 +112,7 @@ const App: React.FC = () => {
       </AuthProvider>
     </Theme>
   </ThemeProvider>
+    </ErrorBoundary>
   );
 };
 
