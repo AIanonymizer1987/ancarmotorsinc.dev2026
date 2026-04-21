@@ -63,7 +63,7 @@ const Register: React.FC = () => {
       await sendVerificationEmail(email, code, verificationMethod, verificationLink);
       
       toast.success('Account created successfully! Please check your email for verification instructions.');
-      navigate('/verify-email');
+      navigate(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to register.');
     } finally {
