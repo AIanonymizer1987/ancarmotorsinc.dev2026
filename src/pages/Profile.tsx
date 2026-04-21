@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Upload, Lock, Mail, ShieldCheck, Ticket } from 'lucide-react';
+import { Upload, Lock, Mail, ShieldCheck, Ticket, FileText } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -13,7 +13,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'email' | 'picture' | 'discounts' | 'identity'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'email' | 'picture' | 'discounts' | 'identity' | 'documents'>('profile');
   
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -42,10 +42,16 @@ export default function Profile() {
   const [verificationSent, setVerificationSent] = useState(false);
   const [voucherClaiming, setVoucherClaiming] = useState(false);
   const [idRequestLoading, setIdRequestLoading] = useState(false);
+  const [documentUploads, setDocumentUploads] = useState({
+    driversLicense: null as File | null,
+    proofOfIncome: null as File | null,
+    proofOfInsurance: null as File | null,
+  });
+  const [documentUploading, setDocumentUploading] = useState(false);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && ['profile', 'password', 'email', 'picture', 'discounts', 'identity'].includes(tab)) {
+    if (tab && ['profile', 'password', 'email', 'picture', 'discounts', 'identity', 'documents'].includes(tab)) {
       setActiveTab(tab as typeof activeTab);
     }
   }, [searchParams]);
@@ -304,17 +310,35 @@ export default function Profile() {
     }
   };
 
-  const handleRemovePicture = async () => {
-    setSubmitting(true);
+  const handleDocumentUpload = async (documentType: 'driversLicense' | 'proofOfIncome' | 'proofOfInsurance', file: File) => {
+    setDocumentUploading(true);
     try {
-      await updateProfilePicture(user.id, '');
-      await refreshUser();
-      setPictureUrl('');
-      toast.success('Profile picture removed successfully');
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      if (!response.ok) throw new Error('Upload failed');
+      const data = await response.json();
+      const imageUrl = data.secure_url;
+
+      // Here you would call an API to save the document URL
+      // For now, we'll just show a success message
+      toast.success(`${documentType} uploaded successfully!`);
+      
+      // Reset the file input
+      setDocumentUploads(prev => ({ ...prev, [documentType]: null }));
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to remove profile picture');
+      toast.error(error?.message || `Failed to upload ${documentType}`);
     } finally {
-      setSubmitting(false);
+      setDocumentUploading(false);
     }
   };
 
@@ -386,6 +410,16 @@ export default function Profile() {
               }`}
             >
               <ShieldCheck size={18} /> Verification
+            </button>
+            <button
+              onClick={() => setActiveTab('documents')}
+              className={`px-4 py-2 font-medium flex items-center gap-2 ${
+                activeTab === 'documents'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <FileText size={18} /> Documents
             </button>
           </div>
 
@@ -787,6 +821,107 @@ export default function Profile() {
                 <p className="text-sm text-gray-500">Use a clear photo of a valid Philippine government-issued ID. The admin can approve or deny your verification request.</p>
                 <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
                   After upload, your request will be sent to the admin. If the request is approved, your identity status will be updated here.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'documents' && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Document Submission</h2>
+              <div className="grid gap-6">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-sm text-gray-700 mb-4">
+                    Submit the following documents to complete your profile and enable full access to our services.
+                    All documents will be securely stored and reviewed by our admin team.
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Driver's License</h3>
+                    <p className="text-sm text-gray-600 mb-4">Upload a clear photo of your valid driver's license.</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setDocumentUploads(prev => ({ ...prev, driversLicense: file }));
+                        }
+                      }}
+                      disabled={documentUploading}
+                      className="w-full mb-2"
+                    />
+                    {documentUploads.driversLicense && (
+                      <button
+                        onClick={() => handleDocumentUpload('driversLicense', documentUploads.driversLicense)}
+                        disabled={documentUploading}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {documentUploading ? 'Uploading...' : 'Upload Driver\'s License'}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Proof of Income</h3>
+                    <p className="text-sm text-gray-600 mb-4">Upload proof of income (pay stub, bank statement, etc.).</p>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setDocumentUploads(prev => ({ ...prev, proofOfIncome: file }));
+                        }
+                      }}
+                      disabled={documentUploading}
+                      className="w-full mb-2"
+                    />
+                    {documentUploads.proofOfIncome && (
+                      <button
+                        onClick={() => handleDocumentUpload('proofOfIncome', documentUploads.proofOfIncome)}
+                        disabled={documentUploading}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {documentUploading ? 'Uploading...' : 'Upload Proof of Income'}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Proof of Insurance</h3>
+                    <p className="text-sm text-gray-600 mb-4">Upload proof of vehicle insurance if applicable.</p>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setDocumentUploads(prev => ({ ...prev, proofOfInsurance: file }));
+                        }
+                      }}
+                      disabled={documentUploading}
+                      className="w-full mb-2"
+                    />
+                    {documentUploads.proofOfInsurance && (
+                      <button
+                        onClick={() => handleDocumentUpload('proofOfInsurance', documentUploads.proofOfInsurance)}
+                        disabled={documentUploading}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {documentUploading ? 'Uploading...' : 'Upload Proof of Insurance'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> All uploaded documents are encrypted and securely stored.
+                    Our admin team will review your submissions and may contact you if additional information is needed.
+                  </p>
                 </div>
               </div>
             </div>

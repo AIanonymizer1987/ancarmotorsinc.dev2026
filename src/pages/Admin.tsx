@@ -9,7 +9,7 @@ import { toast } from 'react-toastify';
 import { PieChart, Pie, Cell, Tooltip, BarChart, Bar, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Truck, Package } from 'lucide-react';
 
-type ViewType = 'dashboard' | 'vehicles' | 'orders' | 'users' | 'suppliers' | 'analytics' | 'customer-service' | 'database-management' | 'test-drives';
+type ViewType = 'dashboard' | 'vehicles' | 'orders' | 'users' | 'suppliers' | 'analytics' | 'customer-service' | 'database-management' | 'test-drives' | 'documents';
 
 type VehicleFormState = Omit<Vehicle, 'vehicle_id' | 'vehicle_color' | 'vehicle_transmission' | 'vehicle_lifting_capacity' | 'vehicle_towing_capacity' | 'vehicle_payload_capacity'> & {
   vehicle_color: string[];
@@ -769,6 +769,12 @@ const Admin: React.FC = () => {
                   Users
                 </button>
                 <button
+                  onClick={() => setCurrentView('documents')}
+                  className={`w-full text-left px-3 py-2 rounded ${currentView === 'documents' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+                >
+                  Document Verification
+                </button>
+                <button
                   onClick={() => setCurrentView('suppliers')}
                   className={`w-full text-left px-3 py-2 rounded ${currentView === 'suppliers' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
                 >
@@ -1330,6 +1336,38 @@ const Admin: React.FC = () => {
                       Last
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {currentView === 'documents' && (
+              <div className="space-y-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h1 className="text-2xl font-bold">Document Verification</h1>
+                    <p className="text-gray-600">Review and verify customer submitted documents</p>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left">User</th>
+                        <th className="px-4 py-2 text-left">Document Type</th>
+                        <th className="px-4 py-2 text-left">Status</th>
+                        <th className="px-4 py-2 text-left">Submitted</th>
+                        <th className="px-4 py-2 text-left">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* This would be populated with actual document submissions */}
+                      <tr className="border-t">
+                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                          No documents submitted yet. Documents will appear here when customers upload them.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}

@@ -28,6 +28,7 @@ import AdminAccount from './src/pages/AdminAccount';
 import VerifyEmail from './src/pages/VerifyEmail';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { safeLocalStorage } from './src/utils/localStorage';
+import IdentityVerificationPrompt from './src/components/IdentityVerificationPrompt';
 
 declare global {
   interface Window {
@@ -79,6 +80,7 @@ const App: React.FC = () => {
       <Theme appearance="inherit" radius="large" scaling="100%">
         <AuthProvider>
           <Router>
+          <IdentityVerificationPrompt />
           <AnalyticsTracker />
           <PagePersistence />
             <main className="min-h-screen font-sans">

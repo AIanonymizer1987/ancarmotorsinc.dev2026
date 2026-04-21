@@ -1,5 +1,6 @@
 import React from 'react';
 import { Phone, Mail, MapPin, Facebook, Twitter, Instagram, Moon, Sun } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 
 const Footer = () => {
@@ -36,10 +37,10 @@ const Footer = () => {
               <span className="mr-3">Quick Links</span>
             </h4>
             <ul className="space-y-2 text-center">
-              <li><a href="/about" className="text-gray-300 hover:text-blue-400 transition-colors">About Us</a></li>
-              <li><a href="/services" className="text-gray-300 hover:text-blue-400 transition-colors">Services</a></li>
-              <li><a href="/inventory" className="text-gray-300 hover:text-blue-400 transition-colors">Inventory</a></li>
-              <li><a href="/contact" className="text-gray-300 hover:text-blue-400 transition-colors">Contact</a></li>
+              <li><Link to="/about" className="text-gray-300 hover:text-blue-400 transition-colors">About Us</Link></li>
+              <li><Link to="/services" className="text-gray-300 hover:text-blue-400 transition-colors">Services</Link></li>
+              <li><Link to="/vehicles" className="text-gray-300 hover:text-blue-400 transition-colors">Inventory</Link></li>
+              <li><Link to="/contact" className="text-gray-300 hover:text-blue-400 transition-colors">Contact</Link></li>
             </ul>
           </div>
 
@@ -78,8 +79,8 @@ const Footer = () => {
               {theme === 'dark' ? 'Light mode' : 'Dark mode'}
             </button>
             <div className="flex space-x-6">
-              <a href="#" className="text-gray-400 hover:text-blue-400 text-sm transition-colors">Privacy Policy</a>
-              <a href="#" className="text-gray-400 hover:text-blue-400 text-sm transition-colors">Terms of Service</a>
+              <Link to="/policies" className="text-gray-400 hover:text-blue-400 text-sm transition-colors">Privacy Policy</Link>
+              <Link to="/terms" className="text-gray-400 hover:text-blue-400 text-sm transition-colors">Terms of Service</Link>
             </div>
           </div>
         </div>

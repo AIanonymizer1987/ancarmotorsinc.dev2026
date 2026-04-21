@@ -118,12 +118,24 @@ const InventoryCard: React.FC<Props> = ({ vehicle }) => {
         >
           View Details
         </button>
-        <button
-          onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}`)}
-          className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          Order Vehicle
-        </button>
+        {vehicle.stock_quantity > 0 ? (
+          <button
+            onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}`)}
+            className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            Order Vehicle
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              const title = `Request for Stocks of ${vehicle.vehicle_year} ${vehicle.vehicle_make} ${vehicle.vehicle_model}`;
+              navigate(`/contact?nature=other&title=${encodeURIComponent(title)}#ticket-section`);
+            }}
+            className="flex-1 bg-amber-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
+          >
+            Request for Stock
+          </button>
+        )}
       </div>
     </article>
   );

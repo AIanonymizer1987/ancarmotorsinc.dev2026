@@ -119,18 +119,40 @@ const parseList = (value: string) =>
                     </ul>
 
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}&service=order`)}
-                        className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-                      >
-                        Order Vehicle
-                      </button>
-                      <button
-                        onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}&service=test-drive`)}
-                        className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-md hover:bg-gray-50 transition"
-                      >
-                        Schedule Test Drive
-                      </button>
+                      {vehicle.stock_quantity > 0 ? (
+                        <>
+                          <button
+                            onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}&service=order`)}
+                            className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+                          >
+                            Order Vehicle
+                          </button>
+                          <button
+                            onClick={() => navigate(`/services?vehicle=${vehicle.vehicle_id}&service=test-drive`)}
+                            className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-md hover:bg-gray-50 transition"
+                          >
+                            Schedule Test Drive
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            disabled
+                            className="w-full sm:w-auto px-6 py-3 bg-gray-400 text-gray-600 rounded-md cursor-not-allowed"
+                          >
+                            Order Vehicle (Out of Stock)
+                          </button>
+                          <button
+                            onClick={() => {
+                              const title = `Request for Stocks of ${vehicle.vehicle_year} ${vehicle.vehicle_make} ${vehicle.vehicle_model}`;
+                              navigate(`/contact?nature=other&title=${encodeURIComponent(title)}#ticket-section`);
+                            }}
+                            className="w-full sm:w-auto px-6 py-3 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition"
+                          >
+                            Request for Stock
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -190,6 +190,97 @@ export const sendSupportTicketCopyEmail = async (
   });
 };
 
+export const sendDirectEmail = async (params: {
+  fromName: string;
+  fromEmail: string;
+  subject: string;
+  message: string;
+}) => {
+  const companyEmail = 'ancarmotorsinc1@gmail.com';
+  
+  // Send email to company
+  await sendNotificationEmail(
+    companyEmail,
+    `Direct Contact: ${params.subject}`,
+    'New Direct Email Received',
+    `You have received a new direct email from a customer.`,
+    {
+      fromEmail: params.fromEmail,
+      fromName: params.fromName,
+      replyTo: params.fromEmail,
+      buttonText: 'Reply to Customer',
+      buttonUrl: `mailto:${params.fromEmail}?subject=Re: ${params.subject}`,
+      detailsHtml: `
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #2563eb; margin-bottom: 10px;">Customer Information</h3>
+          <table style="width:100%;font-size:14px;border-collapse:collapse;border:1px solid #e5e7eb;">
+            <tr style="background-color:#f9fafb;">
+              <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Name</strong></td>
+              <td style="padding:8px;border:1px solid #e5e7eb;">${params.fromName}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Email</strong></td>
+              <td style="padding:8px;border:1px solid #e5e7eb;">${params.fromEmail}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #2563eb; margin-bottom: 10px;">Message</h3>
+          <div style="padding: 15px; border: 1px solid #e5e7eb; background-color: #f9fafb; font-size: 14px; line-height: 1.6; color: #374151; white-space: pre-wrap;">${params.message}</div>
+        </div>
+      `,
+      footerText: 'Please respond to the customer as soon as possible.',
+      extraParams: {
+        customer_name: params.fromName,
+        customer_email: params.fromEmail,
+        email_subject: params.subject,
+        email_message: params.message,
+      },
+    }
+  );
+
+  // Send confirmation email to customer
+  await sendNotificationEmail(
+    params.fromEmail,
+    'Thank you for contacting Ancar Motors Inc.',
+    'Email Sent Successfully',
+    `Thank you for reaching out to Ancar Motors Inc. We have received your email and will get back to you as soon as possible.`,
+    {
+      fromEmail: companyEmail,
+      fromName: 'Ancar Motors Inc.',
+      replyTo: companyEmail,
+      buttonText: 'Contact Us Again',
+      buttonUrl: `${window.location.origin}/contact#direct-email`,
+      detailsHtml: `
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #2563eb; margin-bottom: 10px;">Your Message</h3>
+          <table style="width:100%;font-size:14px;border-collapse:collapse;border:1px solid #e5e7eb;">
+            <tr style="background-color:#f9fafb;">
+              <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Subject</strong></td>
+              <td style="padding:8px;border:1px solid #e5e7eb;">${params.subject}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Sent</strong></td>
+              <td style="padding:8px;border:1px solid #e5e7eb;">${new Date().toLocaleString()}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #2563eb; margin-bottom: 10px;">Message Content</h3>
+          <div style="padding: 15px; border: 1px solid #e5e7eb; background-color: #f9fafb; font-size: 14px; line-height: 1.6; color: #374151; white-space: pre-wrap;">${params.message}</div>
+        </div>
+      `,
+      footerText: 'We typically respond within 24 hours. If you have urgent matters, please call us directly.',
+      extraParams: {
+        email_subject: params.subject,
+        email_message: params.message,
+      },
+    }
+  );
+};
+
 export const sendReceiptSummaryEmail = async (
   toEmail: string,
   subject: string,

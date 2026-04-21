@@ -20,6 +20,7 @@
     "date-fns": "^3.6.0",
     "framer-motion": "^12.12.2",
     "globals": "^16.4.0",
+    "graphviz": "^0.0.9",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.462.0",
     "pg": "^8.20.0",
