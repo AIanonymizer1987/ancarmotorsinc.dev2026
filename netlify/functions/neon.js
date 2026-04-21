@@ -5,8 +5,8 @@ const rawNeonDatabaseUrl =
   process.env.NETLIFY_NEON_DATABASE_URL ||
   process.env.NEON_DATABASE_URL ||
   process.env.DATABASE_URL ||
-  process.env.NETLIFY_DATABASE_URL ||
-  process.env.NETLIFY_DATABASE_URL_UNPOOLED;
+  process.env.NETLIFY_DATABASE_URL_UNPOOLED ||
+  process.env.NETLIFY_DATABASE_URL;
 const rawNeonApiUrl = process.env.NETLIFY_NEON_API_URL || process.env.NEON_API_URL;
 const rawNeonApiKey = process.env.NETLIFY_NEON_API_KEY || process.env.NEON_API_KEY;
 
@@ -30,9 +30,17 @@ let poolInitError = null;
 const directDbEnabled = Boolean(NEON_DATABASE_URL);
 if (directDbEnabled) {
   try {
+    console.log('Initializing Neon database pool with connection string...');
     pool = new Pool({
       connectionString: NEON_DATABASE_URL,
       ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      max: 20,
+    });
+    
+    pool.on('error', (err) => {
+      console.error('Unexpected error on idle client', err);
     });
   } catch (error) {
     poolInitError = error;

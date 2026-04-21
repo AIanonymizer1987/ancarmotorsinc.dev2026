@@ -82,8 +82,21 @@ const Admin: React.FC = () => {
   const [ticketPage, setTicketPage] = useState(1);
   const ticketsPerPage = 5;
   const [analyticsRevenueView, setAnalyticsRevenueView] = useState<'monthly' | 'annually'>('monthly');
+  const [showLowStockNotification, setShowLowStockNotification] = useState(false);
 
   const isAdmin = user?.role === 'admin';
+
+  // Calculate low stock vehicles (stock <= 2)
+  const lowStockVehicles = useMemo(() => {
+    return vehicles.filter(v => v.stock_quantity <= 2);
+  }, [vehicles]);
+
+  // Show notification when entering vehicles view if there are low stock items
+  useEffect(() => {
+    if (currentView === 'vehicles' && lowStockVehicles.length > 0) {
+      setShowLowStockNotification(true);
+    }
+  }, [currentView, lowStockVehicles]);
 
   const fetchData = async () => {
     try {
@@ -715,9 +728,12 @@ const Admin: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setCurrentView('vehicles')}
-                  className={`w-full text-left px-3 py-2 rounded ${currentView === 'vehicles' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+                  className={`w-full text-left px-3 py-2 rounded relative ${currentView === 'vehicles' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
                 >
                   Inventory
+                  {lowStockVehicles.length > 0 && (
+                    <span className="absolute right-3 top-2 w-2 h-2 bg-red-500 rounded-full"></span>
+                  )}
                 </button>
                 <button
                   onClick={() => setCurrentView('orders')}
@@ -1293,6 +1309,39 @@ const Admin: React.FC = () => {
 
             {currentView === 'vehicles' && (
                 <div className="space-y-6">
+                  {/* Low Stock Notification Popup */}
+                  {showLowStockNotification && lowStockVehicles.length > 0 && (
+                    <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center">
+                            <svg className="w-6 h-6 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                            <h3 className="text-lg font-semibold text-red-800">Low Stock Alert</h3>
+                          </div>
+                          <p className="text-red-700 mt-2 ml-9">
+                            {lowStockVehicles.length} product(s) need to be restocked:
+                          </p>
+                          <ul className="mt-3 ml-9 space-y-2">
+                            {lowStockVehicles.map(vehicle => (
+                              <li key={vehicle.vehicle_id} className="text-red-700 text-sm">
+                                <span className="font-semibold">{vehicle.vehicle_make} {vehicle.vehicle_model}</span> - {vehicle.stock_quantity} unit{vehicle.stock_quantity !== 1 ? 's' : ''} remaining
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <button
+                          onClick={() => setShowLowStockNotification(false)}
+                          className="text-red-400 hover:text-red-600 ml-4 flex-shrink-0"
+                        >
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Inventory Management</h1>
                     <button

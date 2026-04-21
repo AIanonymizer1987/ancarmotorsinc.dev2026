@@ -127,7 +127,7 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
   const towingOptions = vehicle ? parseOptions(vehicle.vehicle_towing_capacity) : [];
 
   const shippingCost = formData.shipping_option === 'express' ? 5000 : 0;
-  const transmissionCost = formData.transmission === 'manual' ? 1000 : 0;
+  const transmissionCost = formData.transmission === 'automatic' ? 5000 : 0;
   const payloadCost = getCapacityCost(formData.payloadCapacity, 'payload');
   const liftingCost = getCapacityCost(formData.liftingCapacity, 'lifting');
   const towingCost = getCapacityCost(formData.towingCapacity, 'towing');
@@ -333,8 +333,8 @@ export default function OrderVehicleForm({ onSuccess }: OrderVehicleFormProps) {
               onChange={(e) => setFormData({ ...formData, transmission: e.target.value })}
               className="w-full border rounded-md px-3 py-2"
             >
-              <option value="automatic">Automatic (+{formatCurrency(0)})</option>
-              <option value="manual">Manual (+{formatCurrency(1000)})</option>
+              <option value="automatic">Automatic (+{formatCurrency(5000)})</option>
+              <option value="manual">Manual (+{formatCurrency(0)})</option>
             </select>
           </div>
 
