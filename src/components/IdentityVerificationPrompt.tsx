@@ -9,10 +9,9 @@ const IdentityVerificationPrompt: React.FC = () => {
   const [showDialog, setShowDialog] = useState(false);
 
   useEffect(() => {
-    // Show dialog if user is authenticated, email is verified, but ID verification is not requested or approved
+    // Show dialog if user is authenticated and ID verification is not requested or approved
     if (
       isAuthenticated &&
-      user?.emailVerified &&
       (!user.id_verification_status || user.id_verification_status === 'not requested' || user.id_verification_status === 'denied')
     ) {
       // Check if we've already shown this dialog in this session
