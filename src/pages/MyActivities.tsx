@@ -165,6 +165,41 @@ export default function MyActivities() {
     else if (type === 'ticket') setTicketPage(page);
   };
 
+  const calculateEstimatedDelivery = (order: Order): string => {
+    const orderDate = new Date(order.order_timestamp);
+    let estimatedDate = new Date(orderDate);
+
+    // Calculate estimated delivery based on status
+    if (order.product_status === 'completed') {
+      return 'Delivered';
+    }
+    if (order.product_status === 'cancelled' || order.product_status === 'rejected') {
+      return 'Not applicable';
+    }
+    if (order.product_status === 'out_for_delivery') {
+      return 'In transit';
+    }
+
+    // Default: Add 7-14 business days based on status
+    const daysToAdd = order.product_status === 'approved' ? 7 : 14;
+    let businessDaysAdded = 0;
+
+    while (businessDaysAdded < daysToAdd) {
+      estimatedDate.setDate(estimatedDate.getDate() + 1);
+      const dayOfWeek = estimatedDate.getDay();
+      // Skip weekends (0 = Sunday, 6 = Saturday)
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        businessDaysAdded++;
+      }
+    }
+
+    return estimatedDate.toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -280,6 +315,7 @@ export default function MyActivities() {
                             </div>
                             <p className="text-sm text-gray-600">Order ID: <span className="font-mono font-semibold">{order.order_id}</span></p>
                             <p className="text-sm text-gray-600">Date: {new Date(order.order_timestamp).toLocaleDateString()}</p>
+                            <p className="text-sm text-gray-600">Estimated Delivery: <span className="font-semibold text-blue-600">{calculateEstimatedDelivery(order)}</span></p>
                             <p className="text-sm text-gray-600">Delivery: {order.delivery_address || 'Not available'}</p>
                           </div>
                           <div className="text-right">

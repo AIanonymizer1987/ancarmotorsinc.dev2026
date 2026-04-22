@@ -249,7 +249,20 @@ const Payment: React.FC = () => {
       </table>
     `;
 
-    let combinedDetailsHtml = detailsHtml;
+    // Customer Information Section
+    const customerInfoHtml = `
+      <div style="margin-top:20px;">
+        <h3 style="margin-bottom: 10px; color: #2563eb;">Customer Information</h3>
+        <table style="width:100%;font-size:14px;border-collapse:collapse;">
+          <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Name</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${userData?.user_name || user?.name || 'N/A'}</td></tr>
+          <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Email</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${user?.email || 'N/A'}</td></tr>
+          <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Phone</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${userData?.user_phone_number || 'Not provided'}</td></tr>
+          <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;"><strong>Address</strong></td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${userData?.user_address || 'Not provided'}</td></tr>
+        </table>
+      </div>
+    `;
+
+    let combinedDetailsHtml = detailsHtml + customerInfoHtml;
 
     if (order.product_payment === 'installment' && installmentInfo) {
       combinedDetailsHtml += `

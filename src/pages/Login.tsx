@@ -11,16 +11,60 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isCapsLockOn, setIsCapsLockOn] = useState(false);
+
+  const handlePasswordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const isCapsActive = e.getModifierState('CapsLock');
+    setIsCapsLockOn(isCapsActive);
+  };
+
+  const handlePasswordBlur = () => {
+    setIsCapsLockOn(false);
+  };
+
+  const validatePasswordInput = (): string | null => {
+    if (!password.trim()) {
+      return 'Password field is empty';
+    }
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters long';
+    }
+    return null;
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    const passwordError = validatePasswordInput();
+    if (passwordError) {
+      toast.error(passwordError);
+      return;
+    }
+
+    if (!email.trim()) {
+      toast.error('Email is required');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await login(email.trim(), password);
       toast.success('Successfully signed in.');
       navigate('/');
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to sign in.');
+      const errorMessage = err?.message || 'Failed to sign in.';
+      
+      // Provide specific error messages based on error type
+      if (errorMessage.toLowerCase().includes('password')) {
+        toast.error('Incorrect password. Please try again.');
+      } else if (errorMessage.toLowerCase().includes('email') || errorMessage.toLowerCase().includes('user')) {
+        toast.error('Email not found. Please check your email or register.');
+      } else if (errorMessage.toLowerCase().includes('verify')) {
+        toast.error('Please verify your email before signing in.');
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -57,10 +101,18 @@ const Login: React.FC = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={handlePasswordKeyDown}
+                onKeyUp={handlePasswordKeyDown}
+                onBlur={handlePasswordBlur}
                 className="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your password"
                 aria-required="true"
               />
+              {isCapsLockOn && (
+                <p className="text-sm text-orange-600 mt-1 flex items-center">
+                  <span>⚠️ Caps Lock is on</span>
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between mb-4">

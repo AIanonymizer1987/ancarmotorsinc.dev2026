@@ -73,6 +73,16 @@ function PagePersistence() {
   return null;
 }
 
+function ScrollToTop() {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
+  return null;
+}
+
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
@@ -83,6 +93,7 @@ const App: React.FC = () => {
           <IdentityVerificationPrompt />
           <AnalyticsTracker />
           <PagePersistence />
+          <ScrollToTop />
             <main className="min-h-screen font-sans">
               <Routes>
               <Route path="/" element={<Home />} />

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ConfirmDialog } from './ConfirmDialog';
+import { toast } from 'react-toastify';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -316,6 +317,7 @@ const Header = () => {
         isDangerous={false}
         onConfirm={() => {
           logout();
+          toast.success('Successfully signed out.');
           setShowSignOutConfirm(false);
           navigate('/');
         }}
